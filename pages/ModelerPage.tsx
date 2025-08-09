@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { PackConfig, CellType, CellDimensions, ModelType, BracketDimensions } from '../types';
 import ThreeScene from '../components/ThreeScene';
 import ResultDisplay from '../components/ResultDisplay';
@@ -40,7 +40,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
   const [cellColor, setCellColor] = useState<string>('#0891b2');
   const [posColor, setPosColor] = useState<string>('#ef4444');
   const [negColor, setNegColor] = useState<string>('#3b82f6');
-  const [colorPanelOpen, setColorPanelOpen] = useState<boolean>(false);
+  // Floating color menu uses pill-style buttons (no separate panel)
   const [colorMode, setColorMode] = useState<'pbr' | 'unlit'>('pbr');
 
   const { series, parallel } = packConfig;
@@ -298,43 +298,179 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
         </div>
       </main>
     </div>
-    {/* Floating color menu + toggle button */}
-    <div className="fixed right-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-end gap-3">
-      <button
-        aria-label="Toggle Color Panel"
-        title="Colors"
-        onClick={() => setColorPanelOpen(!colorPanelOpen)}
-        className="h-12 w-12 rounded-full bg-cyan-600 text-white shadow-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 flex items-center justify-center"
-      >
-        <span>🎨</span>
-      </button>
-      {colorPanelOpen && (
-        <div className="bg-gray-800/90 border border-gray-700/60 rounded-xl p-3 shadow-2xl flex flex-col gap-3 w-48">
-          <h4 className="text-sm font-semibold text-gray-200">Colors</h4>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-300">Cell</span>
-              <input type="color" value={cellColor} onChange={e => setCellColor(e.target.value)} className="h-7 w-10 bg-transparent border border-gray-600 rounded" />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-300">Positive</span>
-              <input type="color" value={posColor} onChange={e => setPosColor(e.target.value)} className="h-7 w-10 bg-transparent border border-gray-600 rounded" />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-300">Negative</span>
-              <input type="color" value={negColor} onChange={e => setNegColor(e.target.value)} className="h-7 w-10 bg-transparent border border-gray-600 rounded" />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            {['#0891b2','#22c55e','#0284c7','#9333ea','#eab308','#dc2626','#3b82f6','#111827'].map(c => (
-              <button key={c} title={c} onClick={() => setCellColor(c)} style={{ background: c }} className="h-5 w-5 rounded shadow border border-gray-700" />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    {/* Floating pill-style color menu (matches left menu styling) */}
+    <ColorPillMenu
+      cellColor={cellColor}
+      posColor={posColor}
+      negColor={negColor}
+      onCellColorChange={setCellColor}
+      onPosColorChange={setPosColor}
+      onNegColorChange={setNegColor}
+    />
     </>
   );
 };
 
 export default ModelerPage;
+
+// Small presentational component: pill menu with 3 circular color buttons.
+// Clicking a button opens a small swatch popover; a + opens the full color picker.
+const ColorPillMenu: React.FC<{
+  cellColor: string;
+  posColor: string;
+  negColor: string;
+  onCellColorChange: (c: string) => void;
+  onPosColorChange: (c: string) => void;
+  onNegColorChange: (c: string) => void;
+}> = ({ cellColor, posColor, negColor, onCellColorChange, onPosColorChange, onNegColorChange }) => {
+  const cellRef = useRef<HTMLInputElement>(null);
+  const posRef = useRef<HTMLInputElement>(null);
+  const negRef = useRef<HTMLInputElement>(null);
+  const [active, setActive] = useState<null | 'cell' | 'pos' | 'neg'>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const SWATCHES: Record<'cell' | 'pos' | 'neg', string[]> = {
+    cell: ['#0891b2', '#22c55e', '#0284c7', '#9333ea', '#eab308', '#6b7280', '#111827'],
+    pos: ['#ef4444', '#dc2626', '#b91c1c', '#f97316', '#fb7185'],
+    neg: ['#3b82f6', '#0ea5e9', '#1d4ed8', '#64748b', '#10b981'],
+  };
+
+  const close = () => setActive(null);
+
+  const Popover: React.FC<{
+    kind: 'cell' | 'pos' | 'neg';
+    onPick: (c: string) => void;
+    onOpenPicker: () => void;
+  }> = ({ kind, onPick, onOpenPicker }) => (
+    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-40">
+      <div className="flex items-center gap-2 bg-gray-800/90 border border-gray-700/70 rounded-full px-2 py-1 shadow-lg">
+        {SWATCHES[kind].map((c) => (
+          <button
+            key={c}
+            title={c}
+            onClick={() => { onPick(c); close(); }}
+            className="h-6 w-6 rounded-full border border-gray-700 shadow"
+            style={{ backgroundColor: c }}
+            aria-label={`Choose ${kind} color ${c}`}
+          />
+        ))}
+        <button
+          aria-label="More colors"
+          title="More colors"
+          onClick={() => { onOpenPicker(); close(); }}
+          className="h-6 w-6 rounded-full bg-cyan-600 text-white shadow grid place-items-center hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        >
+          <span className="leading-none">+</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  // Close on outside click and on Escape
+  useEffect(() => {
+    if (!active) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const el = rootRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setActive(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActive(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [active]);
+
+  return (
+    <div ref={rootRef} className="fixed left-4 top-1/2 -translate-y-1/2 z-30">
+      <div className="flex flex-col items-center gap-3 bg-gray-800/70 border border-gray-700/70 rounded-full p-2 shadow-lg">
+        <div className="relative">
+          <button
+            aria-label="Cell Color"
+            title="Cell Color"
+            onClick={() => setActive(active === 'cell' ? null : 'cell')}
+            className={`p-2 rounded-full hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${active === 'cell' ? 'bg-gray-700' : ''}`}
+          >
+            <span className="block h-6 w-6 rounded-full" style={{ backgroundColor: cellColor }} />
+          </button>
+          {active === 'cell' && (
+            <Popover
+              kind="cell"
+              onPick={(c) => onCellColorChange(c)}
+              onOpenPicker={() => cellRef.current?.click()}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <button
+            aria-label="Positive Band Color"
+            title="Positive Band Color"
+            onClick={() => setActive(active === 'pos' ? null : 'pos')}
+            className={`p-2 rounded-full hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${active === 'pos' ? 'bg-gray-700' : ''}`}
+          >
+            <span className="block h-6 w-6 rounded-full" style={{ backgroundColor: posColor }} />
+          </button>
+          {active === 'pos' && (
+            <Popover
+              kind="pos"
+              onPick={(c) => onPosColorChange(c)}
+              onOpenPicker={() => posRef.current?.click()}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <button
+            aria-label="Negative Band Color"
+            title="Negative Band Color"
+            onClick={() => setActive(active === 'neg' ? null : 'neg')}
+            className={`p-2 rounded-full hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${active === 'neg' ? 'bg-gray-700' : ''}`}
+          >
+            <span className="block h-6 w-6 rounded-full" style={{ backgroundColor: negColor }} />
+          </button>
+          {active === 'neg' && (
+            <Popover
+              kind="neg"
+              onPick={(c) => onNegColorChange(c)}
+              onOpenPicker={() => negRef.current?.click()}
+            />
+          )}
+        </div>
+      </div>
+      {/* hidden native inputs */}
+      <input
+        ref={cellRef}
+        type="color"
+        value={cellColor}
+        onChange={(e) => { onCellColorChange(e.target.value); }}
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+      <input
+        ref={posRef}
+        type="color"
+        value={posColor}
+        onChange={(e) => { onPosColorChange(e.target.value); }}
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+      <input
+        ref={negRef}
+        type="color"
+        value={negColor}
+        onChange={(e) => { onNegColorChange(e.target.value); }}
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+    </div>
+  );
+};
