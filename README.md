@@ -70,6 +70,103 @@ pnpm build
 pnpm preview  # Test production build locally
 ```
 
+## Deployment
+
+This application can be easily deployed to various hosting services. The build output is a static site that works with any static hosting provider.
+
+### 🚀 One-Click Deployments
+
+#### Netlify
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/raushanraja/lithium-pack-designer)
+
+**Manual Deployment:**
+1. Fork this repository
+2. Connect your GitHub account to [Netlify](https://netlify.com)
+3. Create new site from Git
+4. Build settings:
+   - Build command: `pnpm build`
+   - Publish directory: `dist`
+   - Node version: `18` or higher
+
+#### Vercel
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/raushanraja/lithium-pack-designer)
+
+**Manual Deployment:**
+1. Install Vercel CLI: `npm i -g vercel`
+2. Run `vercel` in project directory
+3. Follow the prompts
+
+#### Railway
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?template=https://github.com/raushanraja/lithium-pack-designer)
+
+### 🔧 Other Hosting Services
+
+#### GitHub Pages
+1. Enable GitHub Pages in repository settings
+2. Add this to `package.json`:
+   ```json
+   {
+     "homepage": "https://yourusername.github.io/lithium-pack-designer"
+   }
+   ```
+3. Install gh-pages: `pnpm add -D gh-pages`
+4. Add deploy script:
+   ```json
+   {
+     "scripts": {
+       "deploy": "pnpm build && gh-pages -d dist"
+     }
+   }
+   ```
+5. Run `pnpm deploy`
+
+#### Firebase Hosting
+```bash
+npm install -g firebase-tools
+firebase login
+firebase init hosting
+# Select 'dist' as public directory
+# Configure as single-page app: Yes
+pnpm build
+firebase deploy
+```
+
+#### Surge.sh
+```bash
+npm install -g surge
+pnpm build
+cd dist
+surge
+```
+
+#### Docker
+```dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+Build and run:
+```bash
+docker build -t battery-visualizer .
+docker run -p 80:80 battery-visualizer
+```
+
+### ⚙️ Environment Variables
+
+For services that support environment variables, you can optionally set:
+- `GEMINI_API_KEY`: For AI-powered features (optional)
+
+Most hosting services will automatically detect this as a Vite React application and configure build settings appropriately.
+
 ## Usage
 
 1. **Calculator**: Enter desired voltage and capacity to get optimal series/parallel configuration
