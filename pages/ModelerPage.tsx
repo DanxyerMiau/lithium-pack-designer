@@ -112,7 +112,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
     svg += `<text x="${width/2}" y="${length + 12}" text-anchor="middle">${width.toFixed(1)}mm</text>`;
     svg += `<path d="M ${width + 5} 0 L ${width + 5} ${length}" marker-start="url(#arrow)" marker-end="url(#arrow)" />`;
     svg += `<text x="${width + 12}" y="${length/2}" writing-mode="vertical-rl" text-anchor="middle">${length.toFixed(1)}mm</text>`;
-    svg += `<text x="${width + 12}" y="${length + 20}" text-anchor="middle" font-size="4" fill="#666">Height: ${height.toFixed(1)}mm (inc. brackets)</text>`;
+    svg += `<text x="${width + 12}" y="${length + 20}" text-anchor="middle" font-size="4" fill="#66666652">Height: ${height.toFixed(1)}mm (inc. brackets)</text>`;
     svg += `</g>`;
     svg += `</g><defs><marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="blue" /></marker></defs></svg>`;
 
@@ -259,7 +259,10 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
           )}
           
           {previewMode === 'svg' && (
-            <div className="w-full h-full flex items-center justify-center bg-white rounded-lg">
+            <div 
+              key={`svg-preview-${series}-${parallel}-${cellType}`}
+              className="w-full h-full flex items-center justify-center bg-white rounded-lg"
+            >
               <div 
                 className="max-w-full max-h-full overflow-auto"
                 dangerouslySetInnerHTML={{ __html: generateSVGContent() }}
@@ -268,23 +271,18 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
           )}
           
           {previewMode === 'stl' && (
-            <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-lg">
-              <div className="text-center text-white">
-                <svg className="w-16 h-16 mx-auto mb-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"/>
-                </svg>
-                <h3 className="text-lg font-semibold mb-2">STL Preview</h3>
-                <p className="text-gray-400 mb-4">
-                  {modelType === ModelType.ENCLOSURE 
-                    ? `Enclosure with brackets (${dimensions.width.toFixed(1)} × ${dimensions.length.toFixed(1)} × ${dimensions.height.toFixed(1)}mm)`
-                    : `Bracket assembly (${series}S${parallel}P)`
-                  }
-                </p>
-                <p className="text-sm text-gray-500">
-                  Click "Export STL" to download the 3D printable file
-                </p>
-              </div>
-            </div>
+            <STLPreview 
+              key={`stl-preview-${series}-${parallel}-${cellType}-${modelType}-${showBrackets}`}
+              modelType={modelType}
+              dimensions={dimensions}
+              series={series}
+              parallel={parallel}
+              cellType={cellType}
+              wallThickness={wallThickness}
+              tolerance={tolerance}
+              showBrackets={showBrackets}
+              threeSceneRef={threeSceneRef}
+            />
           )}
         </div>
         
@@ -692,6 +690,402 @@ const CompactExport: React.FC<{
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 9.739 9 9.979.239.019.239.019.479.021C16.799 26.98 22 22.75 22 17V7l-10-5z"/><path d="M9 9l2 2 4-4"/></svg>
           <span className="hidden sm:inline">SVG</span>
         </button>
+      </div>
+    </div>
+  );
+};
+
+// STL Preview Component
+const STLPreview: React.FC<{
+  modelType: ModelType;
+  dimensions: { length: number; width: number; height: number };
+  series: number;
+  parallel: number;
+  cellType: CellType;
+  wallThickness: number;
+  tolerance: number;
+  showBrackets: boolean;
+  threeSceneRef: React.RefObject<{ getExportableMesh: () => THREE.Object3D | null }>;
+}> = ({ modelType, dimensions, series, parallel, cellType, wallThickness, tolerance, showBrackets, threeSceneRef }) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<any>(null);
+  const [showMeasurements, setShowMeasurements] = React.useState(true);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+
+    // Clear any existing content - remove ALL children
+    const mountElement = mountRef.current;
+    while (mountElement.firstChild) {
+      mountElement.removeChild(mountElement.firstChild);
+    }
+
+    let cleanup: (() => void) | null = null;
+    let isMounted = true;
+
+    // Import OrbitControls
+    import('three/examples/jsm/controls/OrbitControls.js').then(({ OrbitControls }) => {
+      if (!isMounted || !mountRef.current) return; // Check if component is still mounted
+      if (!isMounted || !mountRef.current) return; // Check if component is still mounted
+
+      // Create scene
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1f2937);
+      sceneRef.current = scene;
+
+      // Create camera
+      const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+      cameraRef.current = camera;
+
+      // Create renderer with dynamic sizing
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      const containerWidth = mountRef.current.clientWidth || 400;
+      const containerHeight = mountRef.current.clientHeight || 400;
+      renderer.setSize(containerWidth, containerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      rendererRef.current = renderer;
+
+      // Update camera aspect ratio
+      camera.aspect = containerWidth / containerHeight;
+      camera.updateProjectionMatrix();
+
+      if (!mountRef.current) return;
+      mountRef.current.appendChild(renderer.domElement);
+
+      // Add camera controls
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.screenSpacePanning = false;
+      controls.minDistance = 10;
+      controls.maxDistance = 500;
+      controls.maxPolarAngle = Math.PI;
+      controlsRef.current = controls;
+
+      // Add lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(5, 5, 5);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+
+      // Generate STL geometry based on mode
+      const group = new THREE.Group();
+
+      if (modelType === ModelType.ENCLOSURE) {
+        // ENCLOSURE MODE: Only show the empty enclosure (no batteries)
+        const { length, width, height } = dimensions;
+        const innerLength = length + tolerance * 2;
+        const innerWidth = width + tolerance * 2;
+        const innerHeight = height + tolerance * 2;
+        const outerLength = innerLength + wallThickness * 2;
+        const outerWidth = innerWidth + wallThickness * 2;
+        const outerHeight = innerHeight + wallThickness;
+        
+        // Enclosure wall material
+        const wallMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x8b9dc3, 
+          metalness: 0.1, 
+          roughness: 0.7,
+          transparent: true,
+          opacity: 0.8
+        });
+        
+        // Bottom plate
+        const bottomGeo = new THREE.BoxGeometry(outerWidth, outerLength, wallThickness);
+        bottomGeo.translate(0, 0, -outerHeight/2 + wallThickness/2);
+        const bottomMesh = new THREE.Mesh(bottomGeo, wallMaterial);
+        group.add(bottomMesh);
+        
+        // Four walls
+        const frontWallGeo = new THREE.BoxGeometry(outerWidth, wallThickness, innerHeight);
+        frontWallGeo.translate(0, outerLength/2 - wallThickness/2, wallThickness/2);
+        const frontWall = new THREE.Mesh(frontWallGeo, wallMaterial);
+        group.add(frontWall);
+        
+        const backWallGeo = new THREE.BoxGeometry(outerWidth, wallThickness, innerHeight);
+        backWallGeo.translate(0, -outerLength/2 + wallThickness/2, wallThickness/2);
+        const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
+        group.add(backWall);
+        
+        const leftWallGeo = new THREE.BoxGeometry(wallThickness, innerLength, innerHeight);
+        leftWallGeo.translate(-outerWidth/2 + wallThickness/2, 0, wallThickness/2);
+        const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
+        group.add(leftWall);
+        
+        const rightWallGeo = new THREE.BoxGeometry(wallThickness, innerLength, innerHeight);
+        rightWallGeo.translate(outerWidth/2 - wallThickness/2, 0, wallThickness/2);
+        const rightWall = new THREE.Mesh(rightWallGeo, wallMaterial);
+        group.add(rightWall);
+
+        // Separate lid positioned to the side
+        const lidMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x9ca3af, 
+          metalness: 0.2, 
+          roughness: 0.6
+        });
+        const topGeo = new THREE.BoxGeometry(outerWidth, outerLength, wallThickness);
+        topGeo.translate(outerWidth + 10, 0, -outerHeight/2 + wallThickness/2);
+        const topMesh = new THREE.Mesh(topGeo, lidMaterial);
+        group.add(topMesh);
+
+      } else {
+        // BRACKET MODE: Show battery pack with brackets
+        const { diameter, height: cellHeight } = CELL_DIMENSIONS[cellType];
+        const spacing = diameter + 1; // 1mm spacing between cells
+        
+        // Create materials
+        const batteryMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x2563eb, 
+          metalness: 0.3, 
+          roughness: 0.4 
+        });
+        
+        const bracketMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x6b7280, 
+          metalness: 0.1, 
+          roughness: 0.8 
+        });
+
+        // Generate battery cells
+        const cellGeometry = new THREE.CylinderGeometry(diameter/2, diameter/2, cellHeight, 16);
+        
+        for (let s = 0; s < series; s++) {
+          for (let p = 0; p < parallel; p++) {
+            // Position each battery
+            const x = (s - (series - 1) / 2) * spacing;
+            const z = (p - (parallel - 1) / 2) * spacing;
+            
+            const battery = new THREE.Mesh(cellGeometry, batteryMaterial);
+            battery.position.set(x, 0, z);
+            battery.rotation.x = Math.PI / 2; // Rotate to stand upright
+            group.add(battery);
+            
+            // Add brackets if enabled
+            if (showBrackets) {
+              const bracketHeight = 8;
+              const bracketThickness = 2;
+              
+              // Top bracket
+              const topBracket = new THREE.Mesh(
+                new THREE.BoxGeometry(diameter + 2, bracketThickness, diameter + 2),
+                bracketMaterial
+              );
+              topBracket.position.set(x, cellHeight/2 + bracketHeight/2, z);
+              group.add(topBracket);
+              
+              // Bottom bracket  
+              const bottomBracket = new THREE.Mesh(
+                new THREE.BoxGeometry(diameter + 2, bracketThickness, diameter + 2),
+                bracketMaterial
+              );
+              bottomBracket.position.set(x, -cellHeight/2 - bracketHeight/2, z);
+              group.add(bottomBracket);
+            }
+          }
+        }
+      }
+
+      // Add the single group to scene
+      scene.add(group);
+      
+      // Calculate bounding box for camera positioning
+      const box = new THREE.Box3().setFromObject(group);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Position camera to fit the entire model and use all available space
+      const distance = maxDim * 1.8; // Closer for better space usage
+      camera.position.set(center.x + distance * 0.7, center.y + distance * 0.8, center.z + distance * 0.7);
+      camera.lookAt(center);
+      controls.target.copy(center);
+      controls.update();
+
+      // Render loop
+      const animate = () => {
+        if (!isMounted) return;
+        requestAnimationFrame(animate);
+        if (controlsRef.current) controlsRef.current.update();
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
+      };
+      animate();
+
+      // Handle resize to maintain aspect ratio and use full space
+      const handleResize = () => {
+        if (mountRef.current && rendererRef.current && cameraRef.current) {
+          const width = mountRef.current.clientWidth;
+          const height = mountRef.current.clientHeight;
+          cameraRef.current.aspect = width / height;
+          cameraRef.current.updateProjectionMatrix();
+          rendererRef.current.setSize(width, height);
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      // Set up cleanup function
+      cleanup = () => {
+        window.removeEventListener('resize', handleResize);
+        if (controlsRef.current) {
+          controlsRef.current.dispose();
+          controlsRef.current = null;
+        }
+        if (rendererRef.current) {
+          if (mountRef.current && rendererRef.current.domElement && mountRef.current.contains(rendererRef.current.domElement)) {
+            mountRef.current.removeChild(rendererRef.current.domElement);
+          }
+          rendererRef.current.dispose();
+          rendererRef.current = null;
+        }
+        // Clear scene
+        if (sceneRef.current) {
+          while(sceneRef.current.children.length > 0) {
+            sceneRef.current.remove(sceneRef.current.children[0]);
+          }
+          sceneRef.current = null;
+        }
+        cameraRef.current = null;
+      };
+    });
+
+    // Return cleanup function for useEffect
+    return () => {
+      isMounted = false;
+      if (cleanup) cleanup();
+    };
+  }, [modelType, dimensions, series, parallel, cellType, wallThickness, tolerance, showBrackets, threeSceneRef]);
+
+  // Calculate actual dimensions for measurements
+  const actualDimensions = React.useMemo(() => {
+    if (modelType === ModelType.ENCLOSURE) {
+      const { length, width, height } = dimensions;
+      const innerLength = length + tolerance * 2;
+      const innerWidth = width + tolerance * 2;
+      const innerHeight = height + tolerance * 2;
+      const outerLength = innerLength + wallThickness * 2;
+      const outerWidth = innerWidth + wallThickness * 2;
+      const outerHeight = innerHeight + wallThickness;
+      return {
+        width: outerWidth,
+        length: outerLength,
+        height: outerHeight,
+        lidWidth: outerWidth,
+        lidLength: outerLength,
+        lidThickness: wallThickness
+      };
+    } else {
+      const { diameter, height: cellHeight } = CELL_DIMENSIONS[cellType];
+      const spacing = diameter + 1;
+      const totalWidth = (series - 1) * spacing + diameter;
+      const totalLength = (parallel - 1) * spacing + diameter;
+      return {
+        width: totalWidth,
+        length: totalLength,  
+        height: cellHeight,
+        cellDiameter: diameter,
+        spacing: spacing
+      };
+    }
+  }, [modelType, dimensions, series, parallel, cellType, wallThickness, tolerance]);
+
+  return (
+    <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden relative">
+      <div ref={mountRef} className="w-full h-full" />
+      
+      {/* Measurement overlays */}
+      {showMeasurements && (
+        <>
+          {/* Main dimensions */}
+          <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded text-sm space-y-1">
+            <div className="text-cyan-400 font-semibold">
+              {modelType === ModelType.ENCLOSURE ? 'Enclosure Dimensions' : 'Pack Dimensions'}
+            </div>
+            <div>Width: {actualDimensions.width.toFixed(1)}mm</div>
+            <div>Length: {actualDimensions.length.toFixed(1)}mm</div>
+            <div>Height: {actualDimensions.height.toFixed(1)}mm</div>
+            {modelType === ModelType.ENCLOSURE && (
+              <>
+                <div className="border-t border-gray-500 pt-1 mt-2">
+                  <div className="text-gray-300 font-medium">Lid (separate part):</div>
+                  <div>Size: {actualDimensions.lidWidth.toFixed(1)} × {actualDimensions.lidLength.toFixed(1)}mm</div>
+                  <div>Thickness: {actualDimensions.lidThickness.toFixed(1)}mm</div>
+                </div>
+              </>
+            )}
+            {modelType === ModelType.BRACKET && (
+              <>
+                <div className="border-t border-gray-500 pt-1 mt-2">
+                  <div className="text-gray-300 font-medium">Cell Details:</div>
+                  <div>Cell Ø: {actualDimensions.cellDiameter.toFixed(1)}mm</div>
+                  <div>Spacing: {actualDimensions.spacing.toFixed(1)}mm</div>
+                  <div>Array: {series}S{parallel}P</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Material info */}
+          <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-2 rounded text-sm">
+            <div className="text-green-400 font-semibold">Print Settings</div>
+            <div>Wall: {wallThickness.toFixed(1)}mm</div>
+            <div>Tolerance: {tolerance.toFixed(1)}mm</div>
+            {modelType === ModelType.ENCLOSURE && (
+              <div>Type: Enclosure + Lid</div>
+            )}
+            {modelType === ModelType.BRACKET && (
+              <div>Type: {showBrackets ? 'With Brackets' : 'Brackets Only'}</div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Control buttons */}
+      <div className="absolute bottom-4 right-4 flex gap-2">
+        <button
+          onClick={() => setShowMeasurements(!showMeasurements)}
+          className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+            showMeasurements 
+              ? 'bg-cyan-600 text-white hover:bg-cyan-700' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+          title={showMeasurements ? 'Hide measurements' : 'Show measurements'}
+        >
+          <svg 
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M4 4h16v2H4z"/>
+            <path d="M4 4v2h2V4z"/>
+            <path d="M8 4v2h2V4z"/>
+            <path d="M12 4v2h2V4z"/>
+            <path d="M16 4v2h2V4z"/>
+            <path d="M20 4v2h2V4z"/>
+            <path d="M4 8v12h2V8z"/>
+            <path d="M4 8h2v2H4z"/>
+            <path d="M4 12h2v2H4z"/>
+            <path d="M4 16h2v2H4z"/>
+            <path d="M4 20h2v2H4z"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Status message */}
+      <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-2 rounded text-sm">
+        STL Preview - Click and drag to rotate, scroll to zoom
       </div>
     </div>
   );
