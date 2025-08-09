@@ -94,7 +94,7 @@ const CalculatorPage: React.FC<CalculatorPageProps> = ({ onNavigateToModeler }) 
         <div className="flex justify-center items-center gap-4">
           <BatteryIcon className="w-10 h-10 text-cyan-400"/>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white">
-            18650 Battery Pack Calculator
+            Battery Pack Calculator
           </h1>
         </div>
         <p className="mt-4 text-lg text-gray-400 max-w-3xl mx-auto">
