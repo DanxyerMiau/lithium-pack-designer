@@ -22,6 +22,24 @@ A React TypeScript application for calculating and visualizing battery pack conf
 - **Multiple Cell Types**: Support for 18650, 21700, 26650, and 32700 battery cells
 - **SVG Layout Export**: 2D technical drawings with precise dimensions
 
+## Screenshots
+
+### Battery Pack Calculator - Main Interface
+![Battery Pack Calculator showing general pack calculator and e-bike range estimator](images/calculator-main.png)
+*Main calculator interface with dual mode: general battery pack configuration and specialized e-bike range estimator with riding style options.*
+
+### 3D Pack Modeler - STL Preview Mode
+![STL Preview Mode showing 3D enclosure with detailed dimensions and export options](images/stl-preview.png)
+*Interactive 3D modeling with STL preview for 3D printing. Shows enclosure dimensions, print settings, and export capabilities.*
+
+### 3D Visualization Mode
+![3D Visualization Mode showing realistic battery pack with color-coded terminals](images/3d-visualization.png)
+*Real-time 3D battery pack visualization with interactive controls, realistic rendering, and color-coded positive/negative terminals.*
+
+### E-bike Range Estimator
+![E-bike Range Estimator with riding style options and range calculations](images/ebike-calculator.png)
+*Specialized calculator for electric bike applications with range estimation based on riding conditions, terrain, and riding style.*
+
 ## Tech Stack
 
 - React 19 with TypeScript
