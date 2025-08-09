@@ -229,7 +229,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="relative lg:col-span-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 min-h-[400px] lg:min-h-[600px]">
-           {isBuilding && (
+           {isBuilding && previewMode === '3d' && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-800/80 z-20 rounded-xl pointer-events-none">
               <div className="flex flex-col items-center gap-4">
                 <svg className="animate-spin h-10 w-10 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -713,9 +713,13 @@ const STLPreview: React.FC<{
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<any>(null);
   const [showMeasurements, setShowMeasurements] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   useEffect(() => {
     if (!mountRef.current) return;
+
+    // Set loading state
+    setIsLoading(true);
 
     // Clear any existing content - remove ALL children
     const mountElement = mountRef.current;
@@ -907,6 +911,9 @@ const STLPreview: React.FC<{
       controls.target.copy(center);
       controls.update();
 
+      // Scene is ready, stop loading
+      setIsLoading(false);
+
       // Render loop
       const animate = () => {
         if (!isMounted) return;
@@ -1000,8 +1007,18 @@ const STLPreview: React.FC<{
     <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden relative">
       <div ref={mountRef} className="w-full h-full" />
       
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-gray-900/80 flex items-center justify-center">
+          <div className="text-white text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-3"></div>
+            <div className="text-lg font-medium">Building STL Preview...</div>
+          </div>
+        </div>
+      )}
+      
       {/* Measurement overlays */}
-      {showMeasurements && (
+      {showMeasurements && !isLoading && (
         <>
           {/* Main dimensions */}
           <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded text-sm space-y-1">
@@ -1048,45 +1065,49 @@ const STLPreview: React.FC<{
       )}
 
       {/* Control buttons */}
-      <div className="absolute bottom-4 right-4 flex gap-2">
-        <button
-          onClick={() => setShowMeasurements(!showMeasurements)}
-          className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-            showMeasurements 
-              ? 'bg-cyan-600 text-white hover:bg-cyan-700' 
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-          title={showMeasurements ? 'Hide measurements' : 'Show measurements'}
-        >
-          <svg 
-            width="16" 
-            height="16" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
+      {!isLoading && (
+        <div className="absolute bottom-4 right-4 flex gap-2">
+          <button
+            onClick={() => setShowMeasurements(!showMeasurements)}
+            className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+              showMeasurements 
+                ? 'bg-cyan-600 text-white hover:bg-cyan-700' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+            title={showMeasurements ? 'Hide measurements' : 'Show measurements'}
           >
-            <path d="M4 4h16v2H4z"/>
-            <path d="M4 4v2h2V4z"/>
-            <path d="M8 4v2h2V4z"/>
-            <path d="M12 4v2h2V4z"/>
-            <path d="M16 4v2h2V4z"/>
-            <path d="M20 4v2h2V4z"/>
-            <path d="M4 8v12h2V8z"/>
-            <path d="M4 8h2v2H4z"/>
-            <path d="M4 12h2v2H4z"/>
-            <path d="M4 16h2v2H4z"/>
-            <path d="M4 20h2v2H4z"/>
-          </svg>
-        </button>
-      </div>
+            <svg 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M4 4h16v2H4z"/>
+              <path d="M4 4v2h2V4z"/>
+              <path d="M8 4v2h2V4z"/>
+              <path d="M12 4v2h2V4z"/>
+              <path d="M16 4v2h2V4z"/>
+              <path d="M20 4v2h2V4z"/>
+              <path d="M4 8v12h2V8z"/>
+              <path d="M4 8h2v2H4z"/>
+              <path d="M4 12h2v2H4z"/>
+              <path d="M4 16h2v2H4z"/>
+              <path d="M4 20h2v2H4z"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Status message */}
-      <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-2 rounded text-sm">
-        STL Preview - Click and drag to rotate, scroll to zoom
-      </div>
+      {!isLoading && (
+        <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-2 rounded text-sm">
+          STL Preview - Click and drag to rotate, scroll to zoom
+        </div>
+      )}
     </div>
   );
 };
