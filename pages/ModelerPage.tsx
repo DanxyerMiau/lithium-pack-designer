@@ -106,31 +106,60 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
         const { length, width, height } = dimensions;
         const innerLength = length + tolerance * 2;
         const innerWidth = width + tolerance * 2;
-        const innerHeight = height + tolerance * 2; // Enclosure tall enough for cells
+        const innerHeight = height + tolerance * 2;
         const outerLength = innerLength + wallThickness * 2;
         const outerWidth = innerWidth + wallThickness * 2;
-        const outerHeight = innerHeight + wallThickness; // No top lid
+        const outerHeight = innerHeight + wallThickness;
         
-        const shape = new THREE.Shape();
-        shape.moveTo(-outerWidth/2, -outerLength/2);
-        shape.lineTo(outerWidth/2, -outerLength/2);
-        shape.lineTo(outerWidth/2, outerLength/2);
-        shape.lineTo(-outerWidth/2, outerLength/2);
-        shape.lineTo(-outerWidth/2, -outerLength/2);
+        // Create the enclosure as a solid box with a carved-out interior
+        const outerBoxGeo = new THREE.BoxGeometry(outerWidth, outerLength, outerHeight);
+        const innerBoxGeo = new THREE.BoxGeometry(innerWidth, innerLength, innerHeight);
+        
+        // Position the inner box slightly up to create a bottom wall
+        innerBoxGeo.translate(0, 0, wallThickness / 2);
+        
+        // Use CSG operations to subtract inner from outer
+        // Since we don't have CSG library, we'll create the walls manually
+        const group = new THREE.Group();
+        
+        // Bottom plate
+        const bottomGeo = new THREE.BoxGeometry(outerWidth, outerLength, wallThickness);
+        bottomGeo.translate(0, 0, -outerHeight/2 + wallThickness/2);
+        const bottomMesh = new THREE.Mesh(bottomGeo);
+        group.add(bottomMesh);
+        
+        // Four walls
+        // Front wall
+        const frontWallGeo = new THREE.BoxGeometry(outerWidth, wallThickness, innerHeight);
+        frontWallGeo.translate(0, outerLength/2 - wallThickness/2, wallThickness/2);
+        const frontWall = new THREE.Mesh(frontWallGeo);
+        group.add(frontWall);
+        
+        // Back wall
+        const backWallGeo = new THREE.BoxGeometry(outerWidth, wallThickness, innerHeight);
+        backWallGeo.translate(0, -outerLength/2 + wallThickness/2, wallThickness/2);
+        const backWall = new THREE.Mesh(backWallGeo);
+        group.add(backWall);
+        
+        // Left wall
+        const leftWallGeo = new THREE.BoxGeometry(wallThickness, innerLength, innerHeight);
+        leftWallGeo.translate(-outerWidth/2 + wallThickness/2, 0, wallThickness/2);
+        const leftWall = new THREE.Mesh(leftWallGeo);
+        group.add(leftWall);
+        
+        // Right wall
+        const rightWallGeo = new THREE.BoxGeometry(wallThickness, innerLength, innerHeight);
+        rightWallGeo.translate(outerWidth/2 - wallThickness/2, 0, wallThickness/2);
+        const rightWall = new THREE.Mesh(rightWallGeo);
+        group.add(rightWall);
 
-        const hole = new THREE.Path();
-        hole.moveTo(-innerWidth/2, -innerLength/2);
-        hole.lineTo(innerWidth/2, -innerLength/2);
-        hole.lineTo(innerWidth/2, innerLength/2);
-        hole.lineTo(-innerWidth/2, innerLength/2);
-        hole.lineTo(-innerWidth/2, -innerLength/2);
-        shape.holes.push(hole);
+        // Top/lid as separate part (positioned to the side of the enclosure)
+        const topGeo = new THREE.BoxGeometry(outerWidth, outerLength, wallThickness);
+        topGeo.translate(outerWidth + 10, 0, -outerHeight/2 + wallThickness/2); // Position to the side, flat on the bed
+        const topMesh = new THREE.Mesh(topGeo);
+        group.add(topMesh);
 
-        const extrudeSettings = { depth: outerHeight, bevelEnabled: false };
-        const enclosureGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-        enclosureGeo.rotateX(Math.PI / 2);
-
-        meshToExport = new THREE.Mesh(enclosureGeo);
+        meshToExport = group;
         fileName = `enclosure_${series}s${parallel}p_${cellType}.stl`;
       } else {
         if (threeSceneRef.current) {
