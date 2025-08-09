@@ -1,0 +1,6 @@
+{
+  "name": "18650 Battery Pack Calculator",
+  "description": "An advanced calculator to help design and understand custom 18650 battery pack configurations for general use and e-bikes.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
