@@ -36,6 +36,12 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
   const [showBrackets, setShowBrackets] = useState(true);
   const [modelType, setModelType] = useState<ModelType>(ModelType.ENCLOSURE);
   const threeSceneRef = useRef<{ getExportableMesh: () => THREE.Object3D | null }>(null);
+  // Colors
+  const [cellColor, setCellColor] = useState<string>('#0891b2');
+  const [posColor, setPosColor] = useState<string>('#ef4444');
+  const [negColor, setNegColor] = useState<string>('#3b82f6');
+  const [colorPanelOpen, setColorPanelOpen] = useState<boolean>(false);
+  const [colorMode, setColorMode] = useState<'pbr' | 'unlit'>('pbr');
 
   const { series, parallel } = packConfig;
 
@@ -154,6 +160,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
   }
 
   return (
+    <>
     <div>
       <header className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -186,6 +193,10 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
             holderDimensions={HOLDER_DIMENSIONS[cellType]}
             isGridVisible={isGridVisible}
             showBrackets={showBrackets}
+            cellColor={cellColor}
+            posColor={posColor}
+            negColor={negColor}
+            colorMode={colorMode}
             onBuildComplete={handleBuildComplete}
           />
         </div>
@@ -238,6 +249,20 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
                   <label htmlFor="brackets-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
                 </div>
               </div>
+              <div className="flex items-center justify-between mt-3">
+                <label htmlFor="color-mode-toggle" className="text-gray-300 select-none cursor-pointer">Exact Colors</label>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    name="color-mode-toggle"
+                    id="color-mode-toggle"
+                    checked={colorMode === 'unlit'}
+                    onChange={() => setColorMode(colorMode === 'unlit' ? 'pbr' : 'unlit')}
+                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                  />
+                  <label htmlFor="color-mode-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                </div>
+              </div>
               <style>{`
                 .toggle-checkbox:checked { right: 0; border-color: #06b6d4; }
                 .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; }
@@ -273,6 +298,42 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
         </div>
       </main>
     </div>
+    {/* Floating color menu + toggle button */}
+    <div className="fixed right-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-end gap-3">
+      <button
+        aria-label="Toggle Color Panel"
+        title="Colors"
+        onClick={() => setColorPanelOpen(!colorPanelOpen)}
+        className="h-12 w-12 rounded-full bg-cyan-600 text-white shadow-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 flex items-center justify-center"
+      >
+        <span>🎨</span>
+      </button>
+      {colorPanelOpen && (
+        <div className="bg-gray-800/90 border border-gray-700/60 rounded-xl p-3 shadow-2xl flex flex-col gap-3 w-48">
+          <h4 className="text-sm font-semibold text-gray-200">Colors</h4>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-300">Cell</span>
+              <input type="color" value={cellColor} onChange={e => setCellColor(e.target.value)} className="h-7 w-10 bg-transparent border border-gray-600 rounded" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-300">Positive</span>
+              <input type="color" value={posColor} onChange={e => setPosColor(e.target.value)} className="h-7 w-10 bg-transparent border border-gray-600 rounded" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-300">Negative</span>
+              <input type="color" value={negColor} onChange={e => setNegColor(e.target.value)} className="h-7 w-10 bg-transparent border border-gray-600 rounded" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            {['#0891b2','#22c55e','#0284c7','#9333ea','#eab308','#dc2626','#3b82f6','#111827'].map(c => (
+              <button key={c} title={c} onClick={() => setCellColor(c)} style={{ background: c }} className="h-5 w-5 rounded shadow border border-gray-700" />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+    </>
   );
 };
 

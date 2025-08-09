@@ -10,13 +10,17 @@ interface ThreeSceneProps {
   holderDimensions: BracketDimensions;
   isGridVisible: boolean;
   showBrackets: boolean;
+  cellColor?: string; // wrapper color
+  posColor?: string;  // positive band/label color
+  negColor?: string;  // negative band/label color
+  colorMode?: 'pbr' | 'unlit';
   onBuildComplete: () => void;
 }
 
 const ThreeScene = forwardRef<
   { getExportableMesh: () => THREE.Object3D | null },
   ThreeSceneProps
->(({ series, parallel, cellDimensions, holderDimensions, isGridVisible, showBrackets, onBuildComplete }, ref) => {
+>(({ series, parallel, cellDimensions, holderDimensions, isGridVisible, showBrackets, cellColor = '#0891b2', posColor = '#ef4444', negColor = '#3b82f6', colorMode = 'pbr', onBuildComplete }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneDataRef = useRef<any>({});
   const [isInitialized, setIsInitialized] = useState(false);
@@ -189,10 +193,15 @@ const ThreeScene = forwardRef<
 
   // Indicator Bands (top = +, bottom = -) — wrap around cylinder with extra height
   const bandRadius = (diameter / 2) + 0.25; // slightly outside cell surface
-  const bandHeight = Math.max(2.5, diameter * 0.16); // taller, like a band
+  const bandHeight = Math.max(1.6, diameter * 0.10); // smaller band height
   const bandSegments = 48;
   const bandTopGeo = new THREE.CylinderGeometry(bandRadius, bandRadius, bandHeight, bandSegments);
   const bandBottomGeo = bandTopGeo.clone();
+
+  // Side + / - markers as text labels (planes with transparent textures)
+  const labelWidth = diameter * 0.6;
+  const labelHeight = diameter * 0.28;
+  const labelGeo = new THREE.PlaneGeometry(labelWidth, labelHeight);
 
     // Bracket Frame
     const frameShape = new THREE.Shape();
@@ -213,16 +222,53 @@ const ThreeScene = forwardRef<
     const bracketToothGeo = new THREE.BoxGeometry(toothDepth, bracketHeight, toothWidth);
 
     // --- Create Materials ---
-    const cellMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, metalness: 0.4, roughness: 0.5 });
+    const cellMat = colorMode === 'unlit'
+      ? new THREE.MeshBasicMaterial({ color: new THREE.Color(cellColor) })
+      : new THREE.MeshStandardMaterial({ color: new THREE.Color(cellColor), metalness: 0.4, roughness: 0.5 });
     const bracketMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, metalness: 0.2, roughness: 0.8 });
-    const stripMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.2 });
-    const posTerminalMaterial = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5, roughness: 0.5 });
-    const negTerminalMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.5, roughness: 0.5 });
+  const stripMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.2 });
+    const posTerminalMaterial = colorMode === 'unlit'
+      ? new THREE.MeshBasicMaterial({ color: new THREE.Color(posColor) })
+      : new THREE.MeshStandardMaterial({ color: new THREE.Color(posColor), metalness: 0.5, roughness: 0.5 });
+    const negTerminalMaterial = colorMode === 'unlit'
+      ? new THREE.MeshBasicMaterial({ color: new THREE.Color(negColor) })
+      : new THREE.MeshStandardMaterial({ color: new THREE.Color(negColor), metalness: 0.5, roughness: 0.5 });
     
     // --- Create Instanced Meshes ---
   const cellIM = new THREE.InstancedMesh(cellGeo, cellMat, totalCells);
   const bandTopIM = new THREE.InstancedMesh(bandTopGeo, posTerminalMaterial, totalCells);
   const bandBottomIM = new THREE.InstancedMesh(bandBottomGeo, negTerminalMaterial, totalCells);
+  // Create text textures for '+' and '-'
+  const createLabelTexture = (symbol: string, color: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = color;
+    ctx.font = 'bold 96px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(symbol, canvas.width / 2, canvas.height / 2);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 2;
+    tex.needsUpdate = true;
+    return tex;
+  };
+  const plusTex = createLabelTexture('+', posColor);
+  const minusTex = createLabelTexture('−', negColor);
+  const plusMat = new THREE.MeshBasicMaterial({ map: plusTex, transparent: true, side: THREE.DoubleSide });
+  const minusMat = new THREE.MeshBasicMaterial({ map: minusTex, transparent: true, side: THREE.DoubleSide });
+  // Labels on four sides
+  const plusLabelXPIM = new THREE.InstancedMesh(labelGeo, plusMat, totalCells);
+  const plusLabelXNIM = new THREE.InstancedMesh(labelGeo, plusMat, totalCells);
+  const plusLabelZPIM = new THREE.InstancedMesh(labelGeo, plusMat, totalCells);
+  const plusLabelZNIM = new THREE.InstancedMesh(labelGeo, plusMat, totalCells);
+  const minusLabelXPIM = new THREE.InstancedMesh(labelGeo, minusMat, totalCells);
+  const minusLabelXNIM = new THREE.InstancedMesh(labelGeo, minusMat, totalCells);
+  const minusLabelZPIM = new THREE.InstancedMesh(labelGeo, minusMat, totalCells);
+  const minusLabelZNIM = new THREE.InstancedMesh(labelGeo, minusMat, totalCells);
     const bracketFrameIM = new THREE.InstancedMesh(bracketFrameGeo, bracketMat, totalCells);
     const toothRightIM = new THREE.InstancedMesh(bracketToothGeo, bracketMat, totalCells);
     const toothTopIM = new THREE.InstancedMesh(bracketToothGeo, bracketMat, totalCells);
@@ -232,7 +278,20 @@ const ThreeScene = forwardRef<
     exportableMeshRef.current = bracketAssembly;
   bracketAssembly.visible = !!showBrackets;
   sceneDataRef.current.bracketAssembly = bracketAssembly;
-  packGroup.add(cellIM, bandTopIM, bandBottomIM, bracketAssembly);
+  packGroup.add(
+    cellIM,
+    bandTopIM,
+    bandBottomIM,
+    plusLabelXPIM,
+    plusLabelXNIM,
+    plusLabelZPIM,
+    plusLabelZNIM,
+    minusLabelXPIM,
+    minusLabelXNIM,
+    minusLabelZPIM,
+    minusLabelZNIM,
+    bracketAssembly
+  );
 
     const packWidth = parallel * outerWidth;
     const packLength = series * outerDepth;
@@ -265,13 +324,70 @@ const ThreeScene = forwardRef<
             dummy.quaternion.identity();
 
             // Bands: wrap around cylinder near ends (slightly inward to be visible)
-            dummy.position.set(x, cellHeight - (bandHeight / 2) - 0.6, z);
+            dummy.position.set(x, cellHeight - (bandHeight / 2) - 0.5, z);
             dummy.updateMatrix();
             bandTopIM.setMatrixAt(i, dummy.matrix);
 
-            dummy.position.set(x, (bandHeight / 2) + 0.6, z);
+            dummy.position.set(x, (bandHeight / 2) + 0.5, z);
             dummy.updateMatrix();
             bandBottomIM.setMatrixAt(i, dummy.matrix);
+
+            // Side text labels on all four sides
+            const sideOffset = 0.2;
+            const sideX = (diameter / 2) + sideOffset;
+            const sideZ = (diameter / 2) + sideOffset;
+            const topY = cellHeight - (bandHeight + labelHeight * 0.6) - 0.6;
+            const botY = (bandHeight + labelHeight * 0.6) + 0.6;
+
+            const quatXP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+            const quatXN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+            const quatZP = new THREE.Quaternion(); // facing +Z (no rotation)
+            const quatZN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+
+            // +X
+            dummy.position.set(x + sideX, topY, z);
+            dummy.quaternion.copy(quatXP);
+            dummy.updateMatrix();
+            plusLabelXPIM.setMatrixAt(i, dummy.matrix);
+
+            dummy.position.set(x + sideX, botY, z);
+            dummy.quaternion.copy(quatXP);
+            dummy.updateMatrix();
+            minusLabelXPIM.setMatrixAt(i, dummy.matrix);
+
+            // -X
+            dummy.position.set(x - sideX, topY, z);
+            dummy.quaternion.copy(quatXN);
+            dummy.updateMatrix();
+            plusLabelXNIM.setMatrixAt(i, dummy.matrix);
+
+            dummy.position.set(x - sideX, botY, z);
+            dummy.quaternion.copy(quatXN);
+            dummy.updateMatrix();
+            minusLabelXNIM.setMatrixAt(i, dummy.matrix);
+
+            // +Z
+            dummy.position.set(x, topY, z + sideZ);
+            dummy.quaternion.copy(quatZP);
+            dummy.updateMatrix();
+            plusLabelZPIM.setMatrixAt(i, dummy.matrix);
+
+            dummy.position.set(x, botY, z + sideZ);
+            dummy.quaternion.copy(quatZP);
+            dummy.updateMatrix();
+            minusLabelZPIM.setMatrixAt(i, dummy.matrix);
+
+            // -Z
+            dummy.position.set(x, topY, z - sideZ);
+            dummy.quaternion.copy(quatZN);
+            dummy.updateMatrix();
+            plusLabelZNIM.setMatrixAt(i, dummy.matrix);
+
+            dummy.position.set(x, botY, z - sideZ);
+            dummy.quaternion.copy(quatZN);
+            dummy.updateMatrix();
+            minusLabelZNIM.setMatrixAt(i, dummy.matrix);
+            dummy.quaternion.identity();
 
             i++;
         }
@@ -279,6 +395,14 @@ const ThreeScene = forwardRef<
     cellIM.instanceMatrix.needsUpdate = true;
   bandTopIM.instanceMatrix.needsUpdate = true;
   bandBottomIM.instanceMatrix.needsUpdate = true;
+  plusLabelXPIM.instanceMatrix.needsUpdate = true;
+  plusLabelXNIM.instanceMatrix.needsUpdate = true;
+  plusLabelZPIM.instanceMatrix.needsUpdate = true;
+  plusLabelZNIM.instanceMatrix.needsUpdate = true;
+  minusLabelXPIM.instanceMatrix.needsUpdate = true;
+  minusLabelXNIM.instanceMatrix.needsUpdate = true;
+  minusLabelZPIM.instanceMatrix.needsUpdate = true;
+  minusLabelZNIM.instanceMatrix.needsUpdate = true;
     bracketFrameIM.instanceMatrix.needsUpdate = true;
     toothRightIM.instanceMatrix.needsUpdate = true;
     toothTopIM.instanceMatrix.needsUpdate = true;
@@ -327,7 +451,7 @@ const ThreeScene = forwardRef<
     
     onBuildComplete();
 
-  }, [series, parallel, cellDimensions, holderDimensions, isInitialized, showBrackets, onBuildComplete]);
+  }, [series, parallel, cellDimensions, holderDimensions, isInitialized, showBrackets, cellColor, posColor, negColor, colorMode, onBuildComplete]);
 
   return <div ref={mountRef} className="absolute inset-0 rounded-lg overflow-hidden" />;
 });
