@@ -35,6 +35,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
   const [isGridVisible, setIsGridVisible] = useState(true);
   const [showBrackets, setShowBrackets] = useState(true);
   const [modelType, setModelType] = useState<ModelType>(ModelType.ENCLOSURE);
+  const [previewMode, setPreviewMode] = useState<'3d' | 'stl' | 'svg'>('3d');
   const threeSceneRef = useRef<{ getExportableMesh: () => THREE.Object3D | null }>(null);
   // Colors
   const [cellColor, setCellColor] = useState<string>('#0891b2');
@@ -48,14 +49,42 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
   const dimensions = useMemo(() => {
     const { height } = CELL_DIMENSIONS[cellType];
     const holder = HOLDER_DIMENSIONS[cellType];
+    const bracketHeight = 8; // mm - height of brackets at both ends
     const length = series * holder.outerDepth;
     const width = parallel * holder.outerWidth;
-    return { length, width, height };
+    const totalHeight = height + (bracketHeight * 2); // Cell height + top bracket + bottom bracket
+    return { length, width, height: totalHeight };
   }, [cellType, series, parallel]);
   
   const handleBuildComplete = useCallback(() => {
     setIsBuilding(false);
   }, []);
+
+  const generateSVGContent = useCallback(() => {
+    const holder = HOLDER_DIMENSIONS[cellType];
+    const { length, width, height } = dimensions;
+    const padding = 20;
+    const svgWidth = width + padding * 2;
+    const svgHeight = length + padding * 2;
+
+    let svg = `<svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" style="background-color: #fff; border: 1px solid #ccc;">`;
+    svg += `<g transform="translate(${padding}, ${padding})">`;
+    for (let s = 0; s < series; s++) {
+        for (let p = 0; p < parallel; p++) {
+            svg += `<circle cx="${p * holder.outerWidth + holder.outerWidth / 2}" cy="${s * holder.outerDepth + holder.outerDepth / 2}" r="${CELL_DIMENSIONS[cellType].diameter / 2}" fill="#888" stroke="#333" stroke-width="0.5" />`;
+            svg += `<rect x="${p * holder.outerWidth}" y="${s * holder.outerDepth}" width="${holder.outerWidth}" height="${holder.outerDepth}" fill="none" stroke="#ccc" stroke-width="0.2" />`;
+        }
+    }
+    svg += `<g stroke="blue" stroke-width="0.5" font-family="sans-serif" font-size="5">`;
+    svg += `<path d="M 0 ${length + 5} L ${width} ${length + 5}" marker-start="url(#arrow)" marker-end="url(#arrow)" />`;
+    svg += `<text x="${width/2}" y="${length + 12}" text-anchor="middle">${width.toFixed(1)}mm</text>`;
+    svg += `<path d="M ${width + 5} 0 L ${width + 5} ${length}" marker-start="url(#arrow)" marker-end="url(#arrow)" />`;
+    svg += `<text x="${width + 12}" y="${length/2}" writing-mode="vertical-rl" text-anchor="middle">${length.toFixed(1)}mm</text>`;
+    svg += `<text x="${width + 12}" y="${length + 20}" text-anchor="middle" font-size="4" fill="#666">Height: ${height.toFixed(1)}mm (inc. brackets)</text>`;
+    svg += `</g>`;
+    svg += `</g><defs><marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="blue" /></marker></defs></svg>`;
+    return svg;
+  }, [cellType, dimensions, series, parallel]);
   
   // Cell type is now chosen via segmented control
   
@@ -65,7 +94,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
 
   const handleExportSVG = () => {
     const holder = HOLDER_DIMENSIONS[cellType];
-    const { length, width } = dimensions;
+    const { length, width, height } = dimensions;
     const padding = 20;
     const svgWidth = width + padding * 2;
     const svgHeight = length + padding * 2;
@@ -83,6 +112,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
     svg += `<text x="${width/2}" y="${length + 12}" text-anchor="middle">${width.toFixed(1)}mm</text>`;
     svg += `<path d="M ${width + 5} 0 L ${width + 5} ${length}" marker-start="url(#arrow)" marker-end="url(#arrow)" />`;
     svg += `<text x="${width + 12}" y="${length/2}" writing-mode="vertical-rl" text-anchor="middle">${length.toFixed(1)}mm</text>`;
+    svg += `<text x="${width + 12}" y="${length + 20}" text-anchor="middle" font-size="4" fill="#666">Height: ${height.toFixed(1)}mm (inc. brackets)</text>`;
     svg += `</g>`;
     svg += `</g><defs><marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="blue" /></marker></defs></svg>`;
 
@@ -111,17 +141,16 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
         const outerWidth = innerWidth + wallThickness * 2;
         const outerHeight = innerHeight + wallThickness;
         
-        // Create the enclosure as a solid box with a carved-out interior
-        const outerBoxGeo = new THREE.BoxGeometry(outerWidth, outerLength, outerHeight);
-        const innerBoxGeo = new THREE.BoxGeometry(innerWidth, innerLength, innerHeight);
-        
-        // Position the inner box slightly up to create a bottom wall
-        innerBoxGeo.translate(0, 0, wallThickness / 2);
-        
-        // Use CSG operations to subtract inner from outer
-        // Since we don't have CSG library, we'll create the walls manually
         const group = new THREE.Group();
         
+        // Get the bracket geometry from the 3D scene if available
+        const sceneContent = threeSceneRef.current?.getExportableMesh();
+        if (sceneContent) {
+          // Include the brackets from the scene (which should include top and bottom brackets)
+          group.add(sceneContent.clone());
+        }
+        
+        // Add enclosure walls around the brackets
         // Bottom plate
         const bottomGeo = new THREE.BoxGeometry(outerWidth, outerLength, wallThickness);
         bottomGeo.translate(0, 0, -outerHeight/2 + wallThickness/2);
@@ -160,7 +189,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
         group.add(topMesh);
 
         meshToExport = group;
-        fileName = `enclosure_${series}s${parallel}p_${cellType}.stl`;
+        fileName = `enclosure_with_brackets_${series}s${parallel}p_${cellType}.stl`;
       } else {
         if (threeSceneRef.current) {
           meshToExport = threeSceneRef.current.getExportableMesh();
@@ -211,20 +240,52 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
               </div>
             </div>
           )}
-          <ThreeScene 
-            ref={threeSceneRef}
-            series={series} 
-            parallel={parallel} 
-            cellDimensions={CELL_DIMENSIONS[cellType]}
-            holderDimensions={HOLDER_DIMENSIONS[cellType]}
-            isGridVisible={isGridVisible}
-            showBrackets={showBrackets}
-            cellColor={cellColor}
-            posColor={posColor}
-            negColor={negColor}
-            colorMode={colorMode}
-            onBuildComplete={handleBuildComplete}
-          />
+          
+          {previewMode === '3d' && (
+            <ThreeScene 
+              ref={threeSceneRef}
+              series={series} 
+              parallel={parallel} 
+              cellDimensions={CELL_DIMENSIONS[cellType]}
+              holderDimensions={HOLDER_DIMENSIONS[cellType]}
+              isGridVisible={isGridVisible}
+              showBrackets={showBrackets}
+              cellColor={cellColor}
+              posColor={posColor}
+              negColor={negColor}
+              colorMode={colorMode}
+              onBuildComplete={handleBuildComplete}
+            />
+          )}
+          
+          {previewMode === 'svg' && (
+            <div className="w-full h-full flex items-center justify-center bg-white rounded-lg">
+              <div 
+                className="max-w-full max-h-full overflow-auto"
+                dangerouslySetInnerHTML={{ __html: generateSVGContent() }}
+              />
+            </div>
+          )}
+          
+          {previewMode === 'stl' && (
+            <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-lg">
+              <div className="text-center text-white">
+                <svg className="w-16 h-16 mx-auto mb-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"/>
+                </svg>
+                <h3 className="text-lg font-semibold mb-2">STL Preview</h3>
+                <p className="text-gray-400 mb-4">
+                  {modelType === ModelType.ENCLOSURE 
+                    ? `Enclosure with brackets (${dimensions.width.toFixed(1)} × ${dimensions.length.toFixed(1)} × ${dimensions.height.toFixed(1)}mm)`
+                    : `Bracket assembly (${series}S${parallel}P)`
+                  }
+                </p>
+                <p className="text-sm text-gray-500">
+                  Click "Export STL" to download the 3D printable file
+                </p>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="space-y-6">
@@ -273,7 +334,6 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
               </div>
             </div>
 
-
             <CompactExport
               modelType={modelType}
               onModelTypeChange={handleModelTypeChange}
@@ -295,10 +355,12 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
       posColor={posColor}
       negColor={negColor}
       colorMode={colorMode}
+      previewMode={previewMode}
       onCellColorChange={setCellColor}
       onPosColorChange={setPosColor}
       onNegColorChange={setNegColor}
       onToggleExact={() => setColorMode(colorMode === 'unlit' ? 'pbr' : 'unlit')}
+      onPreviewModeChange={setPreviewMode}
     />
     </>
   );
@@ -313,11 +375,13 @@ const ColorPillMenu: React.FC<{
   posColor: string;
   negColor: string;
   colorMode: 'pbr' | 'unlit';
+  previewMode: '3d' | 'stl' | 'svg';
   onCellColorChange: (c: string) => void;
   onPosColorChange: (c: string) => void;
   onNegColorChange: (c: string) => void;
   onToggleExact: () => void;
-}> = ({ cellColor, posColor, negColor, colorMode, onCellColorChange, onPosColorChange, onNegColorChange, onToggleExact }) => {
+  onPreviewModeChange: (mode: '3d' | 'stl' | 'svg') => void;
+}> = ({ cellColor, posColor, negColor, colorMode, previewMode, onCellColorChange, onPosColorChange, onNegColorChange, onToggleExact, onPreviewModeChange }) => {
   const cellRef = useRef<HTMLInputElement>(null);
   const posRef = useRef<HTMLInputElement>(null);
   const negRef = useRef<HTMLInputElement>(null);
@@ -446,6 +510,43 @@ const ColorPillMenu: React.FC<{
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 2a7 7 0 110 14 7 7 0 010-14z"/>
             <path d="M12 6a6 6 0 00-6 6h2a4 4 0 018 0h2a6 6 0 00-6-6z"/>
+          </svg>
+        </button>
+        
+        {/* Divider */}
+        <div className="w-full h-px bg-gray-600 my-1"></div>
+        
+        {/* Preview Mode Buttons */}
+        <button
+          aria-label="3D Preview"
+          title="3D Preview"
+          onClick={() => onPreviewModeChange('3d')}
+          className={`p-2 rounded-full shadow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${previewMode === '3d' ? 'bg-cyan-600 text-white' : 'text-gray-300'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </button>
+        
+        <button
+          aria-label="STL Preview"
+          title="STL Preview"
+          onClick={() => onPreviewModeChange('stl')}
+          className={`p-2 rounded-full shadow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 ${previewMode === 'stl' ? 'bg-green-600 text-white' : 'text-gray-300'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3L4 6v12l8 3 8-3V6l-8-3zm6 10.5l-6 2.25-6-2.25V8.5l6 2.25 6-2.25v5z"/>
+          </svg>
+        </button>
+        
+        <button
+          aria-label="SVG Preview"
+          title="SVG Preview"
+          onClick={() => onPreviewModeChange('svg')}
+          className={`p-2 rounded-full shadow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${previewMode === 'svg' ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h6v2H7v-2z"/>
           </svg>
         </button>
       </div>

@@ -25,20 +25,28 @@ const BatteryGrid: React.FC<BatteryGridProps> = ({ series, parallel }) => {
     gridTemplateRows: `repeat(${series}, minmax(0, 1fr))`,
   };
   
+  // Calculate cell size based on grid dimensions to prevent oversized displays
+  const maxCellSize = Math.min(40, 300 / Math.max(series, parallel)); // Max 40px, scale down for larger grids
+  const cellSize = `${maxCellSize}px`;
+  
   // Determine where the final connection (negative terminal) is
   const endColumn = series % 2 !== 0 ? parallel : 1;
 
   return (
     <div className="mt-4">
       <p className="text-center text-sm text-gray-400 mb-2">Visual Layout & Connections ({series}S x {parallel}P)</p>
-      <div className="aspect-auto bg-gray-900/50 p-3 rounded-lg overflow-hidden">
-        <div className="relative">
+      <div className="bg-gray-900/50 p-3 rounded-lg overflow-hidden flex justify-center">
+        <div className="relative" style={{ width: 'fit-content' }}>
           {/* Layer 1: The cells */}
-          <div className="grid gap-1.5" style={gridStyle}>
+          <div className="grid gap-1.5" style={{
+            gridTemplateColumns: `repeat(${parallel}, ${cellSize})`,
+            gridTemplateRows: `repeat(${series}, ${cellSize})`,
+          }}>
             {Array.from({ length: totalCells }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-square rounded-full bg-cyan-700 flex items-center justify-center ring-1 ring-cyan-600"
+                className="rounded-full bg-cyan-700 flex items-center justify-center ring-1 ring-cyan-600"
+                style={{ width: cellSize, height: cellSize }}
                 title="18650 Cell"
               >
                 <div className="w-1/3 h-1/3 rounded-full bg-cyan-500"></div>
@@ -47,7 +55,10 @@ const BatteryGrid: React.FC<BatteryGridProps> = ({ series, parallel }) => {
           </div>
 
           {/* Layer 2: The nickel strips and terminals overlay */}
-          <div className="absolute inset-0 grid gap-1.5 pointer-events-none" style={gridStyle}>
+          <div className="absolute inset-0 grid gap-1.5 pointer-events-none" style={{
+            gridTemplateColumns: `repeat(${parallel}, ${cellSize})`,
+            gridTemplateRows: `repeat(${series}, ${cellSize})`,
+          }}>
             {/* Parallel strips */}
             {Array.from({ length: series }).map((_, s_idx) => (
               <div
@@ -64,6 +75,8 @@ const BatteryGrid: React.FC<BatteryGridProps> = ({ series, parallel }) => {
               const s_idx = i + 1;
               // Create an alternating "snake" pattern for series connections
               const column = s_idx % 2 !== 0 ? parallel : 1;
+              const isOddRow = s_idx % 2 !== 0;
+              
               return (
                 <div
                   key={`s-strip-${s_idx}`}
@@ -74,7 +87,19 @@ const BatteryGrid: React.FC<BatteryGridProps> = ({ series, parallel }) => {
                     zIndex: 10,
                   }}
                 >
-                  <div className="h-full w-1/2 bg-slate-500/70 backdrop-blur-sm rounded-sm" />
+                  {/* Vertical strip with gradient to show connection direction */}
+                  <div 
+                    className={`h-full w-1/2 rounded-sm ${
+                      isOddRow 
+                        ? 'bg-gradient-to-b from-slate-500/70 to-slate-600/90' // Top to bottom for odd rows
+                        : 'bg-gradient-to-t from-slate-500/70 to-slate-600/90' // Bottom to top for even rows
+                    } backdrop-blur-sm`}
+                  />
+                  {/* Connection indicator dots */}
+                  <div className="absolute flex flex-col justify-between h-full py-1">
+                    <div className={`w-1 h-1 rounded-full ${isOddRow ? 'bg-orange-400' : 'bg-slate-400/50'}`} />
+                    <div className={`w-1 h-1 rounded-full ${!isOddRow ? 'bg-orange-400' : 'bg-slate-400/50'}`} />
+                  </div>
                 </div>
               );
             })}
