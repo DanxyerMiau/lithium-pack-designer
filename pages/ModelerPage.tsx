@@ -311,10 +311,39 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
                           })}
                         </div>
                     </div>
-                     <h4 className="text-lg font-semibold text-cyan-300 pt-2">Overall Dimensions (incl. holders)</h4>
-                     <ResultDisplay label="Length (Series)" value={dimensions.length.toFixed(1)} unit="mm" />
-                     <ResultDisplay label="Width (Parallel)" value={dimensions.width.toFixed(1)} unit="mm" />
-                     <ResultDisplay label="Height" value={dimensions.height.toFixed(1)} unit="mm" />
+                     <h4 className="text-lg font-semibold text-cyan-300 pt-4 mb-3">Overall Dimensions</h4>
+                     <div className="grid grid-cols-3 gap-2">
+                       <div className="bg-gray-700/30 rounded-lg p-3 text-center">
+                         <div className="flex items-center justify-center mb-2">
+                           <svg className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 24 24">
+                             <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 9H4V9h16v6z"/>
+                             <path d="M2 12h2m16 0h2"/>
+                           </svg>
+                         </div>
+                         <div className="text-2xl font-bold text-white">{dimensions.length.toFixed(1)}</div>
+                         <div className="text-xs text-gray-400">Length • mm</div>
+                       </div>
+                       <div className="bg-gray-700/30 rounded-lg p-3 text-center">
+                         <div className="flex items-center justify-center mb-2">
+                           <svg className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 24 24">
+                             <path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>
+                             <path d="M12 2v2m0 16v2"/>
+                           </svg>
+                         </div>
+                         <div className="text-2xl font-bold text-white">{dimensions.width.toFixed(1)}</div>
+                         <div className="text-xs text-gray-400">Width • mm</div>
+                       </div>
+                       <div className="bg-gray-700/30 rounded-lg p-3 text-center">
+                         <div className="flex items-center justify-center mb-2">
+                           <svg className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 24 24">
+                             <rect x="8" y="2" width="8" height="20" rx="1"/>
+                             <path d="M12 2V0m0 24v-2"/>
+                           </svg>
+                         </div>
+                         <div className="text-2xl font-bold text-white">{dimensions.height.toFixed(1)}</div>
+                         <div className="text-xs text-gray-400">Height • mm</div>
+                       </div>
+                     </div>
                 </div>
             </div>
 
