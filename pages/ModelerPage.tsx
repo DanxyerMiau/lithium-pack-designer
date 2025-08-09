@@ -57,10 +57,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
     setIsBuilding(false);
   }, []);
   
-  const handleCellTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setIsBuilding(true);
-    setCellType(e.target.value as CellType);
-  };
+  // Cell type is now chosen via segmented control
   
   const handleModelTypeChange = (type: ModelType) => {
     setModelType(type);
@@ -208,9 +205,23 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
                     <ResultDisplay label="Configuration" value={`${series}S${parallel}P`} />
                     <div>
                         <label className="block text-sm font-medium text-gray-400 mb-2">Cell Type</label>
-                        <select value={cellType} onChange={handleCellTypeChange} className="w-full bg-gray-700 border-gray-600 text-white rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
-                           {Object.values(CellType).map(ct => <option key={ct} value={ct}>{ct}</option>)}
-                        </select>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-700/60 p-1 rounded-lg">
+                          {([CellType.C18650, CellType.C21700, CellType.C26650, CellType.C32700] as CellType[]).map((ct) => {
+                            const selected = cellType === ct;
+                            const label = ct.replace('C', '');
+                            return (
+                              <button
+                                key={ct}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => { setIsBuilding(true); setCellType(ct); }}
+                                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors text-center ${selected ? 'bg-cyan-600 text-white' : 'text-gray-200 hover:bg-gray-600'}`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
                     </div>
                      <h4 className="text-lg font-semibold text-cyan-300 pt-2">Overall Dimensions (incl. holders)</h4>
                      <ResultDisplay label="Length (Series)" value={dimensions.length.toFixed(1)} unit="mm" />
@@ -219,67 +230,32 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
                 </div>
             </div>
 
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4">View Options</h3>
-              <div className="flex items-center justify-between mb-3">
-                <label htmlFor="grid-toggle" className="text-gray-300 select-none cursor-pointer">Show Grid</label>
-                <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                  <input
-                    type="checkbox"
-                    name="grid-toggle"
-                    id="grid-toggle"
-                    checked={isGridVisible}
-                    onChange={() => setIsGridVisible(!isGridVisible)}
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                  />
-                  <label htmlFor="grid-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+              <h3 className="text-lg font-semibold text-white mb-3">View</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between bg-gray-700/40 rounded-md px-2 py-1.5">
+                  <span className="text-sm text-gray-300 select-none">Grid</span>
+                  <ToggleSwitch checked={isGridVisible} onChange={() => setIsGridVisible(!isGridVisible)} />
+                </div>
+                <div className="flex items-center justify-between bg-gray-700/40 rounded-md px-2 py-1.5">
+                  <span className="text-sm text-gray-300 select-none">Brackets</span>
+                  <ToggleSwitch checked={showBrackets} onChange={() => setShowBrackets(!showBrackets)} />
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="brackets-toggle" className="text-gray-300 select-none cursor-pointer">Show Brackets</label>
-                <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                  <input
-                    type="checkbox"
-                    name="brackets-toggle"
-                    id="brackets-toggle"
-                    checked={showBrackets}
-                    onChange={() => setShowBrackets(!showBrackets)}
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                  />
-                  <label htmlFor="brackets-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
-                </div>
-              </div>
-              <style>{`
-                .toggle-checkbox:checked { right: 0; border-color: #06b6d4; }
-                .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; }
-              `}</style>
             </div>
 
 
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4">Export Options</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Model Type</label>
-                        <div className="flex gap-2 rounded-md bg-gray-700 p-1">
-                            <button onClick={() => handleModelTypeChange(ModelType.ENCLOSURE)} className={`w-full py-2 rounded-md text-sm font-medium transition-colors ${modelType === ModelType.ENCLOSURE ? 'bg-cyan-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Enclosure</button>
-                            <button onClick={() => handleModelTypeChange(ModelType.BRACKET)} className={`w-full py-2 rounded-md text-sm font-medium transition-colors ${modelType === ModelType.BRACKET ? 'bg-cyan-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Brackets</button>
-                        </div>
-                    </div>
-                   {modelType === ModelType.ENCLOSURE && (
-                    <>
-                        <h4 className="text-lg font-semibold text-cyan-300 pt-2">Enclosure Settings</h4>
-                        <InputGroup label="Wall Thickness" type="number" value={wallThickness} onChange={e => setWallThickness(parseFloat(e.target.value))} unit="mm" />
-                        <InputGroup label="Fit Tolerance" type="number" value={tolerance} onChange={e => setTolerance(parseFloat(e.target.value))} unit="mm" />
-                    </>
-                   )}
-                   
-                   <div className="flex flex-col gap-3 pt-4">
-                        <button onClick={handleExportSTL} disabled={isBuilding} className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">Export Model (STL)</button>
-                        <button onClick={handleExportSVG} disabled={isBuilding} className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">Export 2D Layout (SVG)</button>
-                   </div>
-                </div>
-            </div>
+            <CompactExport
+              modelType={modelType}
+              onModelTypeChange={handleModelTypeChange}
+              wallThickness={wallThickness}
+              tolerance={tolerance}
+              onWallThicknessChange={setWallThickness}
+              onToleranceChange={setTolerance}
+              onExportSTL={handleExportSTL}
+              onExportSVG={handleExportSVG}
+              isBuilding={isBuilding}
+            />
 
         </div>
       </main>
@@ -472,6 +448,121 @@ const ColorPillMenu: React.FC<{
         aria-hidden="true"
         tabIndex={-1}
       />
+    </div>
+  );
+};
+
+// Minimal, accessible toggle switch
+const ToggleSwitch: React.FC<{ checked: boolean; onChange: () => void; label?: string }> = ({ checked, onChange, label }) => {
+  const id = useMemo(() => `tgl-${Math.random().toString(36).slice(2, 8)}`, []);
+  return (
+    <div className="relative inline-flex items-center">
+      {label && (
+        <label htmlFor={id} className="mr-2 text-sm text-gray-300">
+          {label}
+        </label>
+      )}
+      <button
+        id={id}
+        role="switch"
+        aria-checked={checked}
+        onClick={onChange}
+        className={`w-10 h-6 rounded-full transition-colors ${checked ? 'bg-cyan-600' : 'bg-gray-600'} relative focus:outline-none focus:ring-2 focus:ring-cyan-500`}
+      >
+        <span
+          className={`absolute top-0.5 ${checked ? 'right-0.5' : 'left-0.5'} h-5 w-5 bg-white rounded-full shadow transition-all`}
+        />
+      </button>
+    </div>
+  );
+};
+
+const CompactExport: React.FC<{
+  modelType: ModelType;
+  onModelTypeChange: (t: ModelType) => void;
+  wallThickness: number;
+  tolerance: number;
+  onWallThicknessChange: (n: number) => void;
+  onToleranceChange: (n: number) => void;
+  onExportSTL: () => void;
+  onExportSVG: () => void;
+  isBuilding: boolean;
+}> = ({ modelType, onModelTypeChange, wallThickness, tolerance, onWallThicknessChange, onToleranceChange, onExportSTL, onExportSVG, isBuilding }) => {
+  const [openSettings, setOpenSettings] = useState(false);
+  return (
+    <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-semibold text-white">Export</h3>
+        <div className="flex gap-2 rounded-md bg-gray-700/60 p-1">
+          <button
+            onClick={() => onModelTypeChange(ModelType.ENCLOSURE)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium ${modelType === ModelType.ENCLOSURE ? 'bg-cyan-600 text-white' : 'text-gray-200 hover:bg-gray-600'}`}
+          >
+            Enclosure
+          </button>
+          <button
+            onClick={() => onModelTypeChange(ModelType.BRACKET)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium ${modelType === ModelType.BRACKET ? 'bg-cyan-600 text-white' : 'text-gray-200 hover:bg-gray-600'}`}
+          >
+            Brackets
+          </button>
+        </div>
+      </div>
+
+      {modelType === ModelType.ENCLOSURE && (
+        <div className="mb-3">
+          <button
+            onClick={() => setOpenSettings(!openSettings)}
+            className="w-full flex items-center justify-between bg-gray-700/40 px-3 py-2 rounded-md text-sm text-gray-200 hover:bg-gray-600"
+          >
+            <span>Enclosure Settings</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 transition-transform ${openSettings ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.085l3.71-3.856a.75.75 0 111.08 1.04l-4.24 4.41a.75.75 0 01-1.08 0l-4.24-4.41a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
+          </button>
+          {openSettings && (
+            <div className="grid grid-cols-1 gap-3 mt-3">
+              <div className="bg-gray-700/40 rounded-md p-3">
+                <label className="block text-xs font-medium text-gray-300 mb-1">Wall Thickness (mm)</label>
+                <input
+                  type="number"
+                  className="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-2 py-1.5 focus:ring-cyan-500 focus:border-cyan-500"
+                  value={wallThickness}
+                  onChange={(e) => onWallThicknessChange(parseFloat(e.target.value))}
+                />
+              </div>
+              <div className="bg-gray-700/40 rounded-md p-3">
+                <label className="block text-xs font-medium text-gray-300 mb-1">Fit Tolerance (mm)</label>
+                <input
+                  type="number"
+                  className="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-2 py-1.5 focus:ring-cyan-500 focus:border-cyan-500"
+                  value={tolerance}
+                  onChange={(e) => onToleranceChange(parseFloat(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+                <button
+          onClick={onExportSTL}
+          disabled={isBuilding}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-600"
+          title="Export Model (STL)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 3l4 4h-3v6h-2V7H8l4-4z"/><path d="M5 13h14v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6z"/></svg>
+          <span className="hidden sm:inline">STL</span>
+        </button>
+        <button
+          onClick={onExportSVG}
+          disabled={isBuilding}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-600"
+          title="Export Layout (SVG)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 2L2 7v10c0 5.55 3.84 9.739 9 9.979.239.019.239.019.479.021C16.799 26.98 22 22.75 22 17V7l-10-5z"/><path d="M9 9l2 2 4-4"/></svg>
+          <span className="hidden sm:inline">SVG</span>
+        </button>
+      </div>
     </div>
   );
 };
