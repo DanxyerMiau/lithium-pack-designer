@@ -9,13 +9,14 @@ interface ThreeSceneProps {
   cellDimensions: CellDimensions;
   holderDimensions: BracketDimensions;
   isGridVisible: boolean;
+  showBrackets: boolean;
   onBuildComplete: () => void;
 }
 
 const ThreeScene = forwardRef<
   { getExportableMesh: () => THREE.Object3D | null },
   ThreeSceneProps
->(({ series, parallel, cellDimensions, holderDimensions, isGridVisible, onBuildComplete }, ref) => {
+>(({ series, parallel, cellDimensions, holderDimensions, isGridVisible, showBrackets, onBuildComplete }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneDataRef = useRef<any>({});
   const [isInitialized, setIsInitialized] = useState(false);
@@ -81,6 +82,7 @@ const ThreeScene = forwardRef<
 
     data.packGroup = new THREE.Group();
     data.scene.add(data.packGroup);
+  data.bracketAssembly = null;
 
     let animationFrameId: number;
     const animate = () => {
@@ -136,6 +138,15 @@ const ThreeScene = forwardRef<
     }
   }, [isGridVisible, isInitialized]);
 
+  // Bracket visibility effect (avoid rebuild on toggle)
+  useEffect(() => {
+    if (!isInitialized) return;
+    const { bracketAssembly } = sceneDataRef.current;
+    if (bracketAssembly) {
+      bracketAssembly.visible = !!showBrackets;
+    }
+  }, [showBrackets, isInitialized]);
+
   // Pack building effect
   useEffect(() => {
     if (!isInitialized) return;
@@ -176,6 +187,13 @@ const ThreeScene = forwardRef<
     const cellGeo = new THREE.CylinderGeometry(diameter / 2, diameter / 2, cellHeight, 24);
     cellGeo.translate(0, cellHeight / 2, 0);
 
+  // Indicator Bands (top = +, bottom = -) — wrap around cylinder with extra height
+  const bandRadius = (diameter / 2) + 0.25; // slightly outside cell surface
+  const bandHeight = Math.max(2.5, diameter * 0.16); // taller, like a band
+  const bandSegments = 48;
+  const bandTopGeo = new THREE.CylinderGeometry(bandRadius, bandRadius, bandHeight, bandSegments);
+  const bandBottomGeo = bandTopGeo.clone();
+
     // Bracket Frame
     const frameShape = new THREE.Shape();
     frameShape.moveTo(-outerWidth / 2, -outerDepth / 2);
@@ -202,16 +220,19 @@ const ThreeScene = forwardRef<
     const negTerminalMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.5, roughness: 0.5 });
     
     // --- Create Instanced Meshes ---
-    const cellIM = new THREE.InstancedMesh(cellGeo, cellMat, totalCells);
+  const cellIM = new THREE.InstancedMesh(cellGeo, cellMat, totalCells);
+  const bandTopIM = new THREE.InstancedMesh(bandTopGeo, posTerminalMaterial, totalCells);
+  const bandBottomIM = new THREE.InstancedMesh(bandBottomGeo, negTerminalMaterial, totalCells);
     const bracketFrameIM = new THREE.InstancedMesh(bracketFrameGeo, bracketMat, totalCells);
     const toothRightIM = new THREE.InstancedMesh(bracketToothGeo, bracketMat, totalCells);
     const toothTopIM = new THREE.InstancedMesh(bracketToothGeo, bracketMat, totalCells);
 
-    const bracketAssembly = new THREE.Group();
+  const bracketAssembly = new THREE.Group();
     bracketAssembly.add(bracketFrameIM, toothRightIM, toothTopIM);
     exportableMeshRef.current = bracketAssembly;
-    
-    packGroup.add(cellIM, bracketAssembly);
+  bracketAssembly.visible = !!showBrackets;
+  sceneDataRef.current.bracketAssembly = bracketAssembly;
+  packGroup.add(cellIM, bandTopIM, bandBottomIM, bracketAssembly);
 
     const packWidth = parallel * outerWidth;
     const packLength = series * outerDepth;
@@ -243,10 +264,21 @@ const ThreeScene = forwardRef<
             toothTopIM.setMatrixAt(i, dummy.matrix);
             dummy.quaternion.identity();
 
+            // Bands: wrap around cylinder near ends (slightly inward to be visible)
+            dummy.position.set(x, cellHeight - (bandHeight / 2) - 0.6, z);
+            dummy.updateMatrix();
+            bandTopIM.setMatrixAt(i, dummy.matrix);
+
+            dummy.position.set(x, (bandHeight / 2) + 0.6, z);
+            dummy.updateMatrix();
+            bandBottomIM.setMatrixAt(i, dummy.matrix);
+
             i++;
         }
     }
     cellIM.instanceMatrix.needsUpdate = true;
+  bandTopIM.instanceMatrix.needsUpdate = true;
+  bandBottomIM.instanceMatrix.needsUpdate = true;
     bracketFrameIM.instanceMatrix.needsUpdate = true;
     toothRightIM.instanceMatrix.needsUpdate = true;
     toothTopIM.instanceMatrix.needsUpdate = true;
@@ -295,7 +327,7 @@ const ThreeScene = forwardRef<
     
     onBuildComplete();
 
-  }, [series, parallel, cellDimensions, holderDimensions, isInitialized, onBuildComplete]);
+  }, [series, parallel, cellDimensions, holderDimensions, isInitialized, showBrackets, onBuildComplete]);
 
   return <div ref={mountRef} className="absolute inset-0 rounded-lg overflow-hidden" />;
 });

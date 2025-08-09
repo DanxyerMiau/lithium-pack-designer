@@ -33,6 +33,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
   const [tolerance, setTolerance] = useState(0.5);
   const [isBuilding, setIsBuilding] = useState(true);
   const [isGridVisible, setIsGridVisible] = useState(true);
+  const [showBrackets, setShowBrackets] = useState(true);
   const [modelType, setModelType] = useState<ModelType>(ModelType.ENCLOSURE);
   const threeSceneRef = useRef<{ getExportableMesh: () => THREE.Object3D | null }>(null);
 
@@ -184,6 +185,7 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
             cellDimensions={CELL_DIMENSIONS[cellType]}
             holderDimensions={HOLDER_DIMENSIONS[cellType]}
             isGridVisible={isGridVisible}
+            showBrackets={showBrackets}
             onBuildComplete={handleBuildComplete}
           />
         </div>
@@ -207,25 +209,39 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
             </div>
 
             <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4">View Options</h3>
-                 <div className="flex items-center justify-between">
-                    <label htmlFor="grid-toggle" className="text-gray-300 select-none cursor-pointer">Show Grid</label>
-                    <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                        <input 
-                          type="checkbox" 
-                          name="grid-toggle" 
-                          id="grid-toggle" 
-                          checked={isGridVisible}
-                          onChange={() => setIsGridVisible(!isGridVisible)}
-                          className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                        />
-                        <label htmlFor="grid-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
-                    </div>
-                 </div>
-                 <style>{`
-                    .toggle-checkbox:checked { right: 0; border-color: #06b6d4; }
-                    .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; }
-                 `}</style>
+              <h3 className="text-xl font-bold text-white mb-4">View Options</h3>
+              <div className="flex items-center justify-between mb-3">
+                <label htmlFor="grid-toggle" className="text-gray-300 select-none cursor-pointer">Show Grid</label>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    name="grid-toggle"
+                    id="grid-toggle"
+                    checked={isGridVisible}
+                    onChange={() => setIsGridVisible(!isGridVisible)}
+                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                  />
+                  <label htmlFor="grid-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="brackets-toggle" className="text-gray-300 select-none cursor-pointer">Show Brackets</label>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    name="brackets-toggle"
+                    id="brackets-toggle"
+                    checked={showBrackets}
+                    onChange={() => setShowBrackets(!showBrackets)}
+                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                  />
+                  <label htmlFor="brackets-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                </div>
+              </div>
+              <style>{`
+                .toggle-checkbox:checked { right: 0; border-color: #06b6d4; }
+                .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; }
+              `}</style>
             </div>
 
 
