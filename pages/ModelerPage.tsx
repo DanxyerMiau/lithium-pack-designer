@@ -249,20 +249,6 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
                   <label htmlFor="brackets-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-3">
-                <label htmlFor="color-mode-toggle" className="text-gray-300 select-none cursor-pointer">Exact Colors</label>
-                <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                  <input
-                    type="checkbox"
-                    name="color-mode-toggle"
-                    id="color-mode-toggle"
-                    checked={colorMode === 'unlit'}
-                    onChange={() => setColorMode(colorMode === 'unlit' ? 'pbr' : 'unlit')}
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                  />
-                  <label htmlFor="color-mode-toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
-                </div>
-              </div>
               <style>{`
                 .toggle-checkbox:checked { right: 0; border-color: #06b6d4; }
                 .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; }
@@ -303,9 +289,11 @@ const ModelerPage: React.FC<ModelerPageProps> = ({ packConfig, onBack }) => {
       cellColor={cellColor}
       posColor={posColor}
       negColor={negColor}
+      colorMode={colorMode}
       onCellColorChange={setCellColor}
       onPosColorChange={setPosColor}
       onNegColorChange={setNegColor}
+      onToggleExact={() => setColorMode(colorMode === 'unlit' ? 'pbr' : 'unlit')}
     />
     </>
   );
@@ -319,10 +307,12 @@ const ColorPillMenu: React.FC<{
   cellColor: string;
   posColor: string;
   negColor: string;
+  colorMode: 'pbr' | 'unlit';
   onCellColorChange: (c: string) => void;
   onPosColorChange: (c: string) => void;
   onNegColorChange: (c: string) => void;
-}> = ({ cellColor, posColor, negColor, onCellColorChange, onPosColorChange, onNegColorChange }) => {
+  onToggleExact: () => void;
+}> = ({ cellColor, posColor, negColor, colorMode, onCellColorChange, onPosColorChange, onNegColorChange, onToggleExact }) => {
   const cellRef = useRef<HTMLInputElement>(null);
   const posRef = useRef<HTMLInputElement>(null);
   const negRef = useRef<HTMLInputElement>(null);
@@ -442,6 +432,17 @@ const ColorPillMenu: React.FC<{
             />
           )}
         </div>
+        <button
+          aria-label="Exact Colors"
+          title="Exact Colors"
+          onClick={onToggleExact}
+          className={`p-2 rounded-full shadow hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${colorMode === 'unlit' ? 'bg-cyan-600 text-white' : ''}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 2a7 7 0 110 14 7 7 0 010-14z"/>
+            <path d="M12 6a6 6 0 00-6 6h2a4 4 0 018 0h2a6 6 0 00-6-6z"/>
+          </svg>
+        </button>
       </div>
       {/* hidden native inputs */}
       <input
