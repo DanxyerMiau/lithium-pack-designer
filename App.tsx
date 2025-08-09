@@ -22,10 +22,14 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        {page === 'calculator' && <CalculatorPage onNavigateToModeler={navigateToModeler} />}
-        {page === 'modeler' && modelerConfig && (
-          <ModelerPage packConfig={modelerConfig} onBack={navigateToCalculator} />
-        )}
+        <div style={{ display: page === 'calculator' ? 'block' : 'none' }}>
+          <CalculatorPage onNavigateToModeler={navigateToModeler} />
+        </div>
+        <div style={{ display: page === 'modeler' ? 'block' : 'none' }}>
+          {modelerConfig && (
+            <ModelerPage packConfig={modelerConfig} onBack={navigateToCalculator} />
+          )}
+        </div>
       </div>
     </div>
   );

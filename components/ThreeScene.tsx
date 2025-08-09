@@ -56,12 +56,15 @@ const ThreeScene = forwardRef<
     data.scene = new THREE.Scene();
     data.scene.background = new THREE.Color(0x1f2937);
 
-    data.camera = new THREE.PerspectiveCamera(50, currentMount.clientWidth / currentMount.clientHeight, 0.1, 10000);
+    const initialWidth = Math.max(1, currentMount.clientWidth || Math.round(currentMount.getBoundingClientRect().width) || 1);
+    const initialHeight = Math.max(1, currentMount.clientHeight || Math.round(currentMount.getBoundingClientRect().height) || 1);
+
+    data.camera = new THREE.PerspectiveCamera(50, initialWidth / initialHeight, 0.1, 10000);
     data.camera.position.set(200, 200, 200);
 
     data.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    data.renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
-    data.renderer.setPixelRatio(window.devicePixelRatio);
+    data.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    data.renderer.setSize(initialWidth, initialHeight, false);
     currentMount.appendChild(data.renderer.domElement);
 
     data.controls = new OrbitControls(data.camera, data.renderer.domElement);
@@ -87,18 +90,34 @@ const ThreeScene = forwardRef<
     };
     animate();
 
-    const handleResize = () => {
+    const resize = () => {
       if (!data.camera || !data.renderer || !mountRef.current) return;
-      data.camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+      const w = Math.max(1, mountRef.current.clientWidth || Math.round(mountRef.current.getBoundingClientRect().width) || 1);
+      const h = Math.max(1, mountRef.current.clientHeight || Math.round(mountRef.current.getBoundingClientRect().height) || 1);
+      data.camera.aspect = w / h;
       data.camera.updateProjectionMatrix();
-      data.renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+      data.renderer.setSize(w, h, false);
     };
+
+    const handleResize = () => resize();
     window.addEventListener('resize', handleResize);
+
+    // Observe element size changes as layout may finalize after first paint
+    if (typeof ResizeObserver !== 'undefined') {
+      data.resizeObserver = new ResizeObserver(() => resize());
+      data.resizeObserver.observe(currentMount);
+    }
+
+    // Ensure an initial resize after mount and layout
+    requestAnimationFrame(() => resize());
 
     setIsInitialized(true);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (data.resizeObserver) {
+        try { data.resizeObserver.disconnect(); } catch {}
+      }
       cancelAnimationFrame(animationFrameId);
       if (data.controls) data.controls.dispose();
       if (data.renderer) {
@@ -278,7 +297,7 @@ const ThreeScene = forwardRef<
 
   }, [series, parallel, cellDimensions, holderDimensions, isInitialized, onBuildComplete]);
 
-  return <div ref={mountRef} className="w-full h-full rounded-lg overflow-hidden" />;
+  return <div ref={mountRef} className="absolute inset-0 rounded-lg overflow-hidden" />;
 });
 
 export default ThreeScene;

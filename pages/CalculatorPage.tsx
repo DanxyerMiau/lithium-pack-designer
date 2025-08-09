@@ -102,7 +102,20 @@ const CalculatorPage: React.FC<CalculatorPageProps> = ({ onNavigateToModeler }) 
 
       <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* General Pack Designer */}
-        <CalculatorCard title="Pack Configuration Designer" icon={<BoltIcon />}>
+        <CalculatorCard 
+          title="Pack Configuration Designer" 
+          icon={<BoltIcon />} 
+          actions={packConfig && (
+            <button 
+              onClick={() => onNavigateToModeler(packConfig)}
+              disabled={packConfig.totalCells > 200}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-75 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              <CubeIcon className="w-5 h-5" />
+              Visualize in 3D
+            </button>
+          )}
+        >
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup label="Desired Pack Voltage" type="number" value={desiredVoltage} onChange={(e) => setDesiredVoltage(parseFloat(e.target.value))} unit="V" />
@@ -127,15 +140,7 @@ const CalculatorPage: React.FC<CalculatorPageProps> = ({ onNavigateToModeler }) 
                   <ResultDisplay label="Actual Capacity" value={packConfig.actualCapacity.toFixed(2)} unit="Ah" />
                 </div>
                 <BatteryGrid series={packConfig.series} parallel={packConfig.parallel} />
-                <div className="pt-4">
-                    <button 
-                        onClick={() => onNavigateToModeler(packConfig)}
-                        disabled={packConfig.totalCells > 200}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-75 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">
-                        <CubeIcon className="w-5 h-5" />
-                        Visualize in 3D
-                    </button>
-                </div>
+                
               </div>
             )}
           </div>
